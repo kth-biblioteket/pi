@@ -12,7 +12,7 @@ locale-gen
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    unixodbc unixodbc-dev \
+    unixodbc unixodbc-dev gnupg \
     && apt-get clean
 
 # Download and install the Microsoft ODBC Driver for SQL Server
