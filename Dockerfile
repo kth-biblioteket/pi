@@ -9,7 +9,7 @@ sed -i '/en_GB.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen && \
 sed -i '/sv_SE.UTF-8/s/^# //g' /etc/locale.gen && \
 locale-gen && \
-pecl install pdo_sqlsrv && \
+pecl install pdo_sqlsrv-5.9.0 && \
 docker-php-ext-enable pdo_sqlsrv
 
 ENV LANG en_GB.UTF-8
