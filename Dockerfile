@@ -9,6 +9,7 @@ sed -i '/en_GB.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen && \
 sed -i '/sv_SE.UTF-8/s/^# //g' /etc/locale.gen && \
 locale-gen && \
+apt-get -y install wget && \
 wget https://packages.microsoft.com/keys/microsoft.asc && \
 apt-key add microsoft.asc && \
 curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
