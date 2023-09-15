@@ -8,18 +8,23 @@ apt-get -y install nano locales && \
 sed -i '/en_GB.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen && \
 sed -i '/sv_SE.UTF-8/s/^# //g' /etc/locale.gen && \
-locale-gen && \
-apt-get -y install gnupg2 && \
-apt-get -y install wget && \
-wget https://packages.microsoft.com/keys/microsoft.asc && \
-apt-key add microsoft.asc && \
-curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
-apt-get update && \
-ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev && \
-pecl install sqlsrv pdo_sqlsrv || \
-apt-get install -y --allow-downgrades odbcinst=2.3.7 odbcinst1debian2=2.3.7 unixodbc=2.3.7 unixodbc-dev=2.3.7 && \
-pecl install sqlsrv pdo_sqlsrv-5.9.0 && \
-docker-php-ext-enable pdo_sqlsrv
+locale-gen
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    unixodbc unixodbc-dev \
+    && apt-get clean
+
+# Download and install the Microsoft ODBC Driver for SQL Server
+RUN curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add -
+RUN curl https://packages.microsoft.com/config/debian/9/prod.list > /etc/apt/sources.list.d/mssql-release.list
+RUN apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql17
+
+# Install the PDO SQLSRV extension
+RUN pecl install pdo_sqlsrv
+
+# Enable the PDO SQLSRV extension
+RUN docker-php-ext-enable pdo_sqlsrv
 
 ENV LANG en_GB.UTF-8
 ENV LANGUAGE en_GB:en
