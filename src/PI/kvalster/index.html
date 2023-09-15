@@ -1,0 +1,252 @@
+<html>
+	<head>
+		<meta charset="utf-8">
+		<!-- KTH Styling -->
+		<link type="text/css" href="https://www.kth.se/css/v/8.5.10/kth.css" rel="stylesheet" />
+		<style>
+			table.listing td, table.listing th {
+				background-color: #fff
+			}
+			
+			table.listing {
+				background-color: #eee;
+				border-collapse: separate;
+				border-spacing: 1;
+			}
+			.article {
+				padding: 0px 38px 0px 38px;
+			}
+			body {
+				margin-top: 0px;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="content">
+			<!-- KTH sidhuvud -->
+			<header>
+				<div id="header" class="header  hasPrimaryHeader  hasSecondaryHeader">
+					<div id="primaryHeader" class="primaryHeader">
+						<div class="tlc cid-1_77257 no-categories block figure defaultTheme mainLogo">
+							<div class="imageWrapper">
+								<a href="http://www.kth.se"><img src="http://www.kth.se/polopoly_fs/1.77259!/KTH_Logotyp_RGB_2013-2.svg" alt="KTH logotype" height="70" width="70" title="KTH_Logotyp_RGB_2013-2.svg"></a>
+							</div>
+						</div>
+					</div>
+					<div id="secondaryHeader" class="secondaryHeader">
+						<div class="tlc cid-1_260303 no-categories block siteName">
+							<a href="https://www.kth.se/kthb/en" hreflang="sv-SE" class="localeLink sv-SE">KTH LIBRARY</a>
+						</div>
+						<div class="blockItemSeparator blockItemSeparatorIndex0">
+							<span class="blockItemSeparatorInner"></span>
+						</div>
+					</div>
+				</div>
+			</header>
+			<div class="article">
+				<div class="preArticleParagraphs">
+					<h1>Analyse WoS file for author counts and KTH authors</h1>
+					<p>Please select file to be analysed. File should be in WoS 'Plain text format' (.isi/.txt)</p>
+					<p>Analysen görs direkt då filen valts</p>
+					<input style="padding:10px 0px;" id="file" type='file' accept='text/plain'>
+				</div>
+				<!-- div nedan för att lägga in tabellen som skapats av skriptet -->
+				<div id="result"><div>
+			</div>
+		</div>
+		<script>
+
+		/***************************************
+
+		Funktion som sorterar en array
+		Inparameter: den property i objektet
+		i arrayen som ska vara sorteringsnyckel
+
+		ex sortera publicationsarrayen på title
+		publications.sort(dynamicSort("title"));
+
+		****************************************/
+		function dynamicSort(property) {
+			var sortOrder = 1;
+			if(property[0] === "-") {
+				sortOrder = -1;
+				property = property.substr(1);
+			}
+			return function (a,b) {
+				var result = (a[property] < b[property]) ? -1 : (a[property] > b[property]) ? 1 : 0;
+				return result * sortOrder;
+			}
+		}
+
+		/******************************************
+
+		Kod som körs efter en fil valts
+
+		******************************************/
+		document.getElementById('file').onchange = function(){
+			
+			var file = this.files[0];
+			var reader = new FileReader();
+			
+			//Array för att spara alla publikationer
+			var publications = [];
+			reader.onload = function(progressEvent){
+				//initiera variabler
+				var addresscount = 0;
+				var authorcount = 0;
+				var kthauthors = "";
+				var title = "";
+				var ut = "";
+				var personobject = {};
+				
+				//loopa igenom alla rader i filen
+				var lines = this.result.split('\n');
+				for(var line = 0; line < lines.length; line++){
+					//läs in tag(de två första tecknen på en rad)
+					tag = lines[line].substring(0,2);
+					
+					//hoppa över kommentarsrader
+					if(tag ==="**") {
+						continue
+					}
+					
+					//slut på en publikation
+					if(tag ==="ER") {
+						//spara publikationsobjekt
+						personobject = {title: title, authorcount: authorcount, kthauthors: kthauthors, ut: ut};
+						//endast de med fler författare än 6 samt som har KTH-affilierade författare
+						if(personobject.authorcount > 6 && personobject.kthauthors != "" ) {
+							publications.push(personobject);
+						}
+						//reset publikation variabler
+						addresscount = 0;
+						authorcount = 0;
+						kthauthors = "";
+						title = "";
+						ut = "";
+						personobject = {};
+					}
+					
+					//ISI UT Nummer
+					if(tag === "UT") {
+						//ta bort WOS / ISI så att bara numret blir kvar
+						ut = lines[line].substring(3,lines[line].length).replace("WOS:","").replace("ISI:","");
+					}
+					
+					//taggar som kan ha multipla rader
+					//TI = Titel
+					if(tag === "TI") {
+						title = lines[line].substring(3,lines[line].length);
+						//Är nästa rad också en Titel(tag === "  ");
+						nextline = line + 1;
+						nexttag = lines[nextline].substring(0,2);
+						//Läs in alla rader tills nästa tag
+						while(nexttag === "  ") {
+							line = nextline;
+							title += lines[line].substring(3,lines[line].length);
+							nextline++
+							nexttag = lines[nextline].substring(0,2);
+						}
+					}
+					
+					//C1 = författaradresser(hitta KTH:are här)
+					if(tag ==="C1") {
+						//är det en KTH-adress? 
+						//Ändrat pythonscriptets sökargmuent från "kth" till "kth " då det verkade komma med en hel del annat än kth-affilieringar annars!
+						if (lines[line].toLowerCase().indexOf("kth ") !== -1 || lines[line].toLowerCase().indexOf("royal inst") !== -1 || lines[line].toLowerCase().indexOf("kungliga tekn") !== -1) {
+							addresscount = 1;
+							kthauthors = lines[line].substring(3,lines[line].length);
+						}
+						//Är nästa rad också en författaradress?(tag === "  ");
+						nextline = line + 1;
+						nexttag = lines[nextline].substring(0,2);
+						//Läs in alla rader tills nästa tag
+						while(nexttag === "  ") {
+							line = nextline;
+							//är det en KTH-adress?
+							if (lines[line].toLowerCase().indexOf("kth ") !== -1 || lines[line].toLowerCase().indexOf("royal inst") !== -1 || lines[line].toLowerCase().indexOf("kungliga tekn") !== -1) {
+								addresscount++
+								kthauthors += lines[line].substring(3,lines[line].length);
+							}
+							nextline++
+							nexttag = lines[nextline].substring(0,2);
+						}
+					}
+					
+					//AU = författarnamn
+					if(tag ==="AU") {
+						authorcount = 1;
+						//Är nästa rad också ett Författarnamn?(tag === "  ");
+						nextline = line + 1;
+						nexttag = lines[nextline].substring(0,2);
+						//Läs in alla rader tills nästa tag
+						while(nexttag === "  ") {
+							line = nextline;
+							nextline++
+							authorcount++
+							nexttag = lines[nextline].substring(0,2);
+						}
+					}
+				} //Slut på loopen
+				
+				//Hantera resultatet
+				//Sortera på titel
+				publications.sort(dynamicSort("title"));
+				//skapa HTML att visa på sidan
+				if(publications.length > 0) {
+					html = '<div style="padding:10px 0px;">WoS publications with more than 6 authors and KTH authors in alphabetical title order.</div>'
+				} else {
+					html = '<div style="padding:10px 0px;">No publications with more than 6 authors and any KTH athours found in uploaded file.</div>'
+				}
+				html += '<table class="listing" id="publication-list" cellspacing="1">';
+				for (var i in publications) {
+					html += '<tr>'
+						html += '<td>'
+							html += 'Title'
+						html += '</td>'
+						html += '<td>'
+							html += '<strong>' + publications[i]["title"] + '</strong>'
+						html += '</td>'
+					 html += '</tr>'
+					html += '<tr>'
+						html += '<td>'
+							html += 'KTH&nbsp;authors  '
+						html += '</td>'
+						html += '<td>'
+							html += publications[i]["kthauthors"]
+						html += '</td>'
+					 html += '</tr>'
+					html += '<tr>'
+						html += '<td>'
+							html += 'Author&nbsp;count  '
+						html += '</td>'
+						html += '<td>'
+							html += publications[i]["authorcount"]
+						html += '</td>'
+					 html += '</tr>'
+					html += '<tr>'
+						html += '<td>'
+							html += 'ISI&nbsp;UT&nbsp;number&nbsp;  '
+						html += '</td>'
+						html += '<td>'
+							html += publications[i]["ut"]
+						html += '</td>'
+					 html += '</tr>'
+					html += '<tr>'
+						html += '<td>'
+							html += '&nbsp;'
+						html += '</td>'
+						html += '<td>'
+							html += '&nbsp;'
+						html += '</td>'
+					 html += '</tr>'
+				}
+				html += '</table>'
+				//Lägg till tabellen till div
+				document.getElementById('result').innerHTML = html;
+			};
+			reader.readAsText(file);
+		};
+		</script>
+	</body>
+</html>
