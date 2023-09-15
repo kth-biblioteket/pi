@@ -15,11 +15,10 @@ wget https://packages.microsoft.com/keys/microsoft.asc && \
 apt-key add microsoft.asc && \
 curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
 apt-get update && \
-ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
-unixodbc \
-unixodbc-dev \
-msodbcsql17 && \
-pecl install pdo_sqlsrv-5.9.0 && \
+ACCEPT_EULA=Y apt-get install -y msodbcsql18 mssql-tools18 unixodbc-dev && \
+pecl install sqlsrv pdo_sqlsrv || \
+apt-get install -y --allow-downgrades odbcinst=2.3.7 odbcinst1debian2=2.3.7 unixodbc=2.3.7 unixodbc-dev=2.3.7 && \
+pecl install sqlsrv pdo_sqlsrv-5.9.0 && \
 docker-php-ext-enable pdo_sqlsrv
 
 ENV LANG en_GB.UTF-8
