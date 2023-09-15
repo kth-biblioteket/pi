@@ -21,7 +21,7 @@ RUN curl https://packages.microsoft.com/config/debian/9/prod.list > /etc/apt/sou
 RUN apt-get update && ACCEPT_EULA=Y apt-get install -y msodbcsql17
 
 # Install the PDO SQLSRV extension
-RUN pecl install pdo_sqlsrv
+RUN pecl install pdo_sqlsrv-5.9.0
 
 # Enable the PDO SQLSRV extension
 RUN docker-php-ext-enable pdo_sqlsrv
