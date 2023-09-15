@@ -9,18 +9,17 @@ sed -i '/en_GB.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen && \
 sed -i '/sv_SE.UTF-8/s/^# //g' /etc/locale.gen && \
 locale-gen && \
-apt-get -y install gnupg2 && \
-apt-get -y install unixodbc-dev && \
-apt-get -y install libltdl7 && \
-apt-get -y install libltdl-dev && \
-curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
-curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+wget https://packages.microsoft.com/keys/microsoft.asc && \
+apt-key add microsoft.asc && \
+curl https://packages.microsoft.com/config/debian/11/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
 apt-get update && \
-ACCEPT_EULA=Y apt-get -y install msodbcsql17 && \
+ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
+unixodbc \
+unixodbc-dev \
+msodbcsql17 \
+mssql-tools17 &&\
 pecl install pdo_sqlsrv-5.9.0 && \
-docker-php-ext-enable pdo_sqlsrv && \
-apt-get clean && \
-rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+docker-php-ext-enable pdo_sqlsrv
 
 ENV LANG en_GB.UTF-8
 ENV LANGUAGE en_GB:en
