@@ -9,8 +9,12 @@ sed -i '/en_GB.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen && \
 sed -i '/sv_SE.UTF-8/s/^# //g' /etc/locale.gen && \
 locale-gen && \
+apt-get -y install unixodbc unixodbc-dev && \
 pecl install pdo_sqlsrv-5.9.0 && \
-docker-php-ext-enable pdo_sqlsrv
+docker-php-ext-enable pdo_sqlsrv && \
+apt-get -y remove unixodbc-dev && \
+apt-get clean && \
+rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 ENV LANG en_GB.UTF-8
 ENV LANGUAGE en_GB:en
