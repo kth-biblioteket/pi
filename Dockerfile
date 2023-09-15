@@ -2,7 +2,7 @@ FROM php:7.3-apache
 
 RUN a2enmod rewrite && \
 cp $PHP_INI_DIR/php.ini-development $PHP_INI_DIR/php.ini && \
-docker-php-ext-install mysqli pdo pdo_mysql && \
+docker-php-ext-install mysqli pdo pdo_mysql pdo_sqlsrv && \
 apt-get update && \
 apt-get -y install nano locales && \
 sed -i '/en_GB.UTF-8/s/^# //g' /etc/locale.gen && \
