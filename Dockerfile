@@ -18,7 +18,6 @@ apt-get update && \
 ACCEPT_EULA=Y apt-get -y install msodbcsql17 && \
 pecl install pdo_sqlsrv-5.9.0 && \
 docker-php-ext-enable pdo_sqlsrv && \
-apt-get -y remove gnupg2 unixodbc-dev && \
 apt-get clean && \
 rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
