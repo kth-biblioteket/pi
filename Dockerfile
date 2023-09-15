@@ -12,6 +12,7 @@ locale-gen && \
 apt-get -y install gnupg2 && \
 apt-get -y install unixodbc-dev && \
 apt-get -y install libltdl7 && \
+apt-get -y install libltdl-dev && \
 curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
 curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
 apt-get update && \
