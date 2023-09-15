@@ -19,7 +19,6 @@ ACCEPT_EULA=Y apt-get install -y --no-install-recommends \
 unixodbc \
 unixodbc-dev \
 msodbcsql17 \
-mssql-tools17 &&\
 pecl install pdo_sqlsrv-5.9.0 && \
 docker-php-ext-enable pdo_sqlsrv
 
