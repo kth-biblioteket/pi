@@ -29,12 +29,8 @@
 
 <ul>
 
-	<!--<li><h3><a href='behandlafil_m_l.php'>FIL FRÅN RT</a></h3></li>-->
         <li><h3><a href='d_behandlafil_man_m_l_25.php'>MANUELLT UTTAGEN FIL</a></h3></li>                    
-
-	<!--<li><h3><a href='behandlafil_m_l_edge.php'>FIL FRÅN EDGE</a></h3></li>-->
-	<li><h3><a href='d_behandlafil_man_m_l.php'>Föregående version av behandla fil</a></h3></li>
-	<!--<li><h3><a href='testapost.php'>Föregående version av behandla fil</a></h3></li>-->	
+	<li><h3><a href='d_behandlafil_man_m_l.php'>Föregående version av behandla fil</a></h3></li>	
 
 </ul>
 
@@ -48,6 +44,8 @@
 * Finns det poster med alltför många författare i WoS-filen, så skapas även en utfil där totala antalet författare och titel anges.<br />
 * Om du anger ditt namn genom att välja handläggare från listan, så får utfilerna ditt namn som en del av filnamnet så att det syns att det är dina filer.<br />
 * Alla dina filer kan du sedan lägga i mappen med ditt namn som finns i mappen DATAFILER.
+<br /><br />
+NY VERSION - valfritt filnamn, men måste ha ändelsen txt. Välj fil och ladda upp för bearbetning. Utfilerna skickas till angiven e-postadress.
 <br /><br /><br /><br />
 <a href='d_meny.php'>TILL HUVUDMENYN</a>
 

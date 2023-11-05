@@ -67,6 +67,7 @@ function validateForm() {
             //
             header('Location: /PI/DiVA/d_meny.php');
         } catch (PDOException $e){
+            echo $e->getMessage();
             echo '<script language="javascript">';
             echo 'alert("Fel vid inloggning till databasen!")';
             echo '</script>';

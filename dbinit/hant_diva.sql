@@ -622,3 +622,5 @@ ALTER TABLE `kthid`
 --
 ALTER TABLE `paramcache`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+
+GRANT ALL PRIVILEGES ON *.* TO 'pi_anv'@'%'

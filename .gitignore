@@ -11,3 +11,5 @@ Thumbs.db
 GAMMALT
 NYTT
 KOPIA*
+Dockerfile-dev
+docker-compose-dev.yml

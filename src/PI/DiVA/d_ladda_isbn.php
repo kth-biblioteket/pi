@@ -2,14 +2,8 @@
     session_start(); 
     require_once('config.php.inc');
 ?>
-
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
-
-<! Författare: Cecilia Wiklander>
-<! Syfte: ISBN-hantering>
-<! Ändringar: >
-
 <html xmlns="http://www.w3.org/1999/xhtml">
 
 <head>
@@ -30,7 +24,8 @@
 
     $username = $_SESSION['anv'];
     $password = $_SESSION['ord'];
-    $dbname = "hant_isbn";
+    $hostname = $_SESSION['hnamn'];
+    $dbname = $_SESSION['dbnamn'];
     
 if (isset($_POST['ladda'])) { 
 
@@ -50,14 +45,51 @@ if (isset($_POST['ladda'])) {
           echo '</script>';
     }
 
-    $fileName = 'DATAFILER\KB_fil.txt';
+    $target_dir = "DATAFILER/";
+    $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
+    $imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
+    $uploadOk = 1;
+
+    // Kontrollera filtyp
+    if($imageFileType != "txt" ) {
+           echo "Tyvärr, enbart textfiler tillåts";
+           $uploadOk = 0;
+    }
+    else {
+          // Kontrollera om filen redan finns
+          if (file_exists($target_file)) {
+              echo "Tyvärr, filen finns redan";
+              $uploadOk = 0;
+          } 
+          else {
+                // Kontrollera filstorlek
+                if ($_FILES["fileToUpload"]["size"] > 500000) {
+                    echo "Tyvärr, filen är för stor.";
+                    $uploadOk = 0;
+                }
+                else {
+                      if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                          echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
+                      } 
+                      else {
+                            echo "Tyvärr, filen gick inte att ladda upp.";
+                            $uploadOk = 0;
+                      }  
+                }    
+          }
+    }
+
+    if ($uploadOk == 1) {
+      
+    $fileName = $target_file;
     if ( file_exists($fileName) && ($fp = fopen($fileName, "r"))!==false ) {
         $antal = 0;
         $finns_ej = TRUE;
         $fungerar = TRUE;
+        
         while(!feof($fp) && $finns_ej && $fungerar) {
             $isbn = fgets($fp);
-            if (strlen(trim($isbn)) > 0) {
+            if (strlen(trim($isbn)) == 17 && substr($isbn, 0, 3) == '978') {
                 $antal = $antal + 1;                
                 
                 if ($antal == 1 && $max_isbn >= trim($isbn)) {
@@ -91,21 +123,22 @@ if (isset($_POST['ladda'])) {
             }                                                 
                    
         }
-
         fclose($fp);
-
+ 
     }
     else {
          echo '<script language="javascript">';
-         echo 'alert("Hittar ej ISBN-nummer-filen!")';
+         echo 'alert("Hittar ej ISBN-filen!")';
          echo '</script>';        
     }   
        
     if ($antal > 0 && $fungerar) {   
         echo '<script language="javascript">';
-        echo 'alert("ISBN-nummer-filen är inladdad!")';
+        echo 'alert("ISBN-filen är inladdad!")';
         echo '</script>';            
-    }      
+    }  
+    
+    }   
     
 }
 
@@ -160,9 +193,12 @@ if (isset($_POST['min_nivaa'])) {
 
 <br />
 
-<form action="d_ladda_isbn.php" method="post">
-<input type="submit" name="ladda" style="background-color:#0fb821" value="Ladda in"/><br /><br />
+<form action="ladda_isbn.php" method="post" enctype="multipart/form-data">
 
+Välj fil att ladda upp:
+<input type="file" name="fileToUpload" id="fileToUpload">
+<input type="submit" value="Ladda upp" name="ladda" style="background-color:#0fb821">
+<br /><br />
 Antal inladdade rader: 
 <input type="text" name="Antal" value="<?php echo $antal; ?>" size="5" disabled /><br /><br />
 
@@ -175,7 +211,7 @@ Miniminivå ISBN:
 <input type="text" name="MinNivISBN" value="<?php echo $min_niv_isbn; ?>" size="5"  /><br /><br />
 <br /><br />
 
-<a href='d_isbn_meny.php'>TILL MENYN</a>
+<a href='isbn_meny.php'>TILL MENYN</a>
 
 </form>
 

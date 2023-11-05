@@ -30,7 +30,16 @@ ENV LANG en_GB.UTF-8
 ENV LANGUAGE en_GB:en
 ENV LC_ALL en_GB.UTF-8
 
-# Disable error display in the custom php.ini file
+# Disable error display
 RUN sed -i -e 's/^display_errors\s*=\s*On/display_errors = Off/g' $PHP_INI_DIR/php.ini
 
+## Se till att det går att ladda up lite större filer
+RUN sed -i -e 's/upload_max_filesize = 2M/upload_max_filesize = 20M/g' $PHP_INI_DIR/php.ini && \
+    sed -i -e 's/post_max_size = 8M/post_max_size = 20M/g' $PHP_INI_DIR/php.ini
+
 COPY ./src /var/www/html
+
+## Sätt ägarskap på upload-kataloger
+RUN chown -R www-data:www-data /var/www/html/PI/DiVA/DATAFILER
+## Sätt ägarskap på upload-kataloger
+RUN chown -R www-data:www-data /var/www/html/PI/sqlserwebb/DATAFILER

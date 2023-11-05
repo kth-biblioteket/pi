@@ -24,8 +24,6 @@
 
 <?php
 
-//$filnamnet = '';
-
 if (isset($_POST['ladda'])) {  
 
     $username = $_SESSION['anv'];
@@ -33,42 +31,51 @@ if (isset($_POST['ladda'])) {
     $hostname = $_SESSION['hnamn'];
     $dbname = "BIBSTAT";
     
-    $filnamnet = $_POST['filnamn']; 
+    $target_dir = "DATAFILER/";
+    $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
+    $imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
+    $uploadOk = 1;
 
-    $strlen = strlen($filnamnet);
-    
-    $felifilen = false;
-    
-    $Antal = 0;
-    
-    $svar = stripos($filnamnet,".");
-    
-    if ($svar) {
-      $svar = stripos($filnamnet,"csv",$svar); 
-      if ($svar === false) { 
-         $felifilen = true;
-      }                
-    } else {
-      if ($strlen > 0) {
-         $filnamnet = $filnamnet . ".csv";
-      } else { 
-         $felifilen = true;     
-      }    
-    }    
-    
-    if ($felifilen == false) { // Riktigt filnamn
+    // Kontrollera filtyp
+    if($imageFileType != "csv" ) {
+           echo "Tyvärr, enbart csv-filer tillåts";
+           $uploadOk = 0;
+    }
+    else {
+          // Kontrollera om filen redan finns
+          if (file_exists($target_file)) {
+              echo "Tyvärr, filen finns redan";
+              $uploadOk = 0;
+          } 
+          else {
+                // Kontrollera filstorlek
+                if ($_FILES["fileToUpload"]["size"] > 500000) {
+                    echo "Tyvärr, filen är för stor.";
+                    $uploadOk = 0;
+                }
+                else {
+                      if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                          echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
+                      } 
+                      else {
+                            echo "Tyvärr, filen gick inte att ladda upp.";
+                            $uploadOk = 0;
+                      }  
+                }    
+          }
+    }
+  
+    if ($uploadOk == 1) { // Riktigt filnamn
+
+       $filnamnet = $target_file;
+       $filnamnet = str_replace(' ', '', $filnamnet);
     
        $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
        $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);      
-   
-       $katalog = "DATAFILER";  
-       $bs = " \ ";     
-       $filnamnet = $katalog . $bs . $filnamnet;           
-       $filnamnet = str_replace(' ', '', $filnamnet);         
  
        $felantal = false; 
        $importstatus = 99;          
-       // Kontrollera antal kolumner i filen och ominläsning redan har gjorts      
+       // Kontrollera antal kolumner i filen och om inläsning redan har gjorts      
        $fh_in = fopen($filnamnet,'r');  
        if ($fh_in) {
          
@@ -267,7 +274,7 @@ if (isset($_POST['ladda'])) {
           else {
              echo "<script>alert('Filen går inte att öppna!');</script>";             
           }    
-       }                     
+       }                    
        
      }
        
@@ -282,7 +289,12 @@ if (isset($_POST['ladda'])) {
 
 ?>
 
-<form action="laddaorgregler.php" method="post">
+<form action="laddaorgregler.php" method="post" enctype="multipart/form-data">
+
+Välj fil att ladda upp:
+<input type="file" name="fileToUpload" id="fileToUpload">
+<input type="submit" value="Ladda upp" name="ladda" style="background-color:#0fb821">
+<br /><br />
   
 <h2>Filen måste vara av typen csv</h2> 
 
@@ -306,15 +318,6 @@ if (isset($_POST['ladda'])) {
 <br />
 8) Användarnamn
 <br />  
-<br /><br />
-
- Filnamn:
- &nbsp;&nbsp;  
-  
-<input type="text" name="filnamn" size="30"> &nbsp;&nbsp; Filändelse behöver inte anges
-<br /> <br /> <br />
-  
-<input type="submit" name="ladda" value="Ladda fil"><br /><br /><br />
 
 <br /> <br /> <br />
 

@@ -40,7 +40,7 @@
     $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 
-    $sql = "SELECT COUNT(*) AS Antal FROM Rule_org_match r WHERE NOT EXISTS (SELECT * FROM Unified_address ua WHERE ua.R_o_m_id = r.R_o_m_id)";
+    $sql = "SELECT COUNT(*) AS Antal FROM Rule_org_match r WHERE NOT EXISTS (SELECT * FROM BIBMET.dbo.Unified_address ua WHERE ua.R_o_m_id = r.R_o_m_id)";
 
 	// Execute it, or let it throw an error message if there's a problem.
 
@@ -59,7 +59,7 @@
     r.Country_3,r.City_3,r.Org_id_3,
     (SELECT Name_en FROM Unified_org_names WHERE Unified_org_id = Org_id_3) AS Org_3 ,
     r.Rule_date,r.Valid_from,r.Valid_to
-    FROM Rule_org_match r WHERE NOT EXISTS (SELECT * FROM Unified_address ua WHERE ua.R_o_m_id = r.R_o_m_id)";
+    FROM Rule_org_match r WHERE NOT EXISTS (SELECT * FROM BIBMET.dbo.Unified_address ua WHERE ua.R_o_m_id = r.R_o_m_id)";
 
 	// Execute it, or let it throw an error message if there's a problem.
 

@@ -1,6 +1,6 @@
-<?php 
-    session_start(); 
-    require_once('config.php.inc');
+<?php
+   session_start();
+   require_once('config.php.inc');
 ?>
 
 <!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
@@ -26,6 +26,7 @@
 
 if (isset($_POST['behandla'])) {
 
+    //$hostname = "localhost";
     $dbname = "bibmet";
     $username = $_SESSION['anv'];
     $password = $_SESSION['ord'];
@@ -33,12 +34,26 @@ if (isset($_POST['behandla'])) {
     $pdo = new PDO("mysql:host=$hostname;dbname=$dbname", $username, $password);
 
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+        $Epost = $_POST['Epost'];
+    
+        require_once($_SERVER['DOCUMENT_ROOT'] . '/PHPMailer/PHPMailerAutoload.php');
+        $mail = new PHPMailer; 
+	$mail->isSMTP(); 
+	$mail->Host = "relayhost.sys.kth.se"; 
+	$mail->SMTPAuth   = FALSE; 
+	$mail->SMTPSecure = "tls";        
+        $mail->CharSet = 'UTF-8';
+        $message = 'Behandlade filer kommer här';        
 
     $sql = "SELECT CURRENT_TIMESTAMP() AS DatumTid";
     $stmt = $pdo->query( $sql );
     foreach ($stmt as $row) {
             $DatumTid = $row['DatumTid'];        
     }
+
+
+
 
     $stmt_f = $pdo->prepare("INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES (:DatumTid,:Radnr,:Postnr,:Rad)");
 
@@ -62,19 +77,50 @@ if (isset($_POST['behandla'])) {
 
 
 
-    //$Filnamnet = $_POST['Filnamnet'];
-    if ($Filtyp == 'wos') {
-       $Filnamnet = 'DATAFILER\ISI.txt';        
+    $target_dir = "DATAFILER/";
+    $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
+    $imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
+    $uploadOk = 1;
+    
+    // Kontrollera filtyp
+    if($imageFileType != "txt" ) {
+           echo "Tyvärr, enbart txt-filer tillåts";
+           $uploadOk = 0;
     }
     else {
-       $Filnamnet = 'DATAFILER\Scopus.txt';            
-    }
+          // Kontrollera om filen redan finns
+          if (file_exists($target_file)) {
+              echo "Tyvärr, filen finns redan";
+              $uploadOk = 0;
+          } 
+          else {
+                // Kontrollera filstorlek
+                if ($_FILES["fileToUpload"]["size"] > 5000000) {
+                    echo "Tyvärr, filen är för stor.";
+                    $uploadOk = 0;
+                }
+                else {
+                      if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                          echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
+                      } 
+                      else {
+                            echo "Tyvärr, filen gick inte att ladda upp.";
+                            $uploadOk = 0;
+                      }  
+                }    
+          }
+    }    
+
+
+    
+ if ($uploadOk == 1) {
+    // Fil att läsa in
+    $filnamn_in = $target_file;
+    $filnamn_in = str_replace(' ', '', $filnamn_in);   
 
     // TEST Max antal författare, 4 som testvärde TEST
     $Maxff = 30;
 
-    // Fil att läsa in
-    $filnamn_in = $Filnamnet;
     // Öppna infil
     $fh_in = fopen($filnamn_in,'r');
     $radnr = 0;
@@ -89,8 +135,9 @@ if (isset($_POST['behandla'])) {
     if (strlen($handl) > 0) {
        $handl = '_' . $handl;
     }
-    //$filnamn_ut = $filnamn_ut . '_UT.txt';
-    $filnamn_ut = $filnamn_ut . $handl . '_UT.txt';
+    
+    $filnamn_ut = $filnamn_ut . $handl . '_UT_' . substr((string) $DatumTid,0,10);
+  
     // Fil att lista antal författare
     $filnamn_lista = $filnamn_in;
     $filnamn_lista = str_replace('.txt','',$filnamn_lista);
@@ -396,7 +443,7 @@ if (isset($_POST['behandla'])) {
         }
 
     }
-    
+   
     $sql_d = "SELECT max(Postnr) AS MaxPostnr FROM filrad WHERE Persondatum = '" . $DatumTid . "'";
     $stmt = $pdo->query( $sql_d );
     foreach ($stmt as $row) {
@@ -417,7 +464,6 @@ if (isset($_POST['behandla'])) {
     	$rad_s_1 = '';
     	$rad_s_2 = 'EF';   
     	$antal_skrivna_filer = 0; 
-    	$filnamn_ut = $Filnamnet . $handl . '_UT_' . substr((string) $DatumTid,0,10);
     	$filnamnsslut = '1';
     	$filnamn = '';
    	   	              
@@ -513,7 +559,8 @@ if (isset($_POST['behandla'])) {
                if ($Radnr == 1) {
                      // Öppna ny fil för utskrift
                      $filnamn = $filnamn_ut . '_' . $filnamnsslut . '.txt';                   
-                     $fp_ut = fopen($filnamn, 'w');                  
+                     $fp_ut = fopen($filnamn, 'w');   
+                                        
                }
                
                if (substr($Rad, 0, 2) == 'PT') {
@@ -559,12 +606,36 @@ if (isset($_POST['behandla'])) {
                    // Stäng utfil
                    fclose($fh_ut);    
                    $antal_PT = 0;    
-                   $antal_skrivna_filer = $antal_skrivna_filer + 1;                          
+                   $antal_skrivna_filer = $antal_skrivna_filer + 1; 
+                   
+        $mail->clearAttachments();
+        $mail->addAttachment($filnamn);            
+        $mail->setFrom('biblioteket@kth.se');
+        $mail->addAddress($Epost);
+        $mail->Subject  = 'Behandlade filer';
+        $mail->Body     = $message;
+        if(!$mail->send()) {
+           echo ' Fel vid skickande av meddelande.';
+           echo ' Fel: ' . $mail->ErrorInfo;
+        } 
+                                                    
                }
                
                if ($antal_filer == $antal_skrivna_filer + 1 && substr($Rad, 0, 2) == 'EF') {                    
                    // Stäng utfil
-                   fclose($fh_ut);                             
+                   fclose($fh_ut);  
+                   
+        $mail->clearAttachments();
+        $mail->addAttachment($filnamn);             
+        $mail->setFrom('biblioteket@kth.se');
+        $mail->addAddress($Epost);
+        $mail->Subject  = 'Behandlade filer';
+        $mail->Body     = $message;
+        if(!$mail->send()) {
+           echo ' Fel vid skickande av meddelande.';
+           echo ' Fel: ' . $mail->ErrorInfo;
+        } 
+                                                         
                }               
 
             }    	
@@ -573,6 +644,7 @@ if (isset($_POST['behandla'])) {
     else { // En utfil skapas
 
         // Öppna ny fil för utskrift
+        $filnamn_ut = $filnamn_ut . '.txt';         
         $fp_ut = fopen($filnamn_ut, 'w');
         // Läs tabellerna
         $stmt_ut = $pdo->prepare("SELECT filrad.Radnr, filrad.Rad, filrad.Postnr AS fPostnr, filrad.KTHff, tabortff.Postnr AS tPostnr, 
@@ -683,9 +755,19 @@ if (isset($_POST['behandla'])) {
         // Stäng utfil
         fclose($fh_ut);
         
+        $mail->clearAttachments();
+        $mail->addAttachment($filnamn);                
+        $mail->setFrom('biblioteket@kth.se');
+        $mail->addAddress($Epost);
+        $mail->Subject  = 'Behandlade filer';
+        $mail->Body     = $message;
+        if(!$mail->send()) {
+           echo ' Fel vid skickande av meddelande.';
+           echo ' Fel: ' . $mail->ErrorInfo;
+        }            
+        
      } // Slut på dela utfil i flera eller ej 2021-04-06 CEWI    
         
-
         // Öppna listfil för antal författare
         $fp_lista = fopen($filnamn_lista, 'w');
         $stmt_lista = $pdo->prepare("SELECT SUBSTRING(f.Rad,4) AS Rad_utan, t.Antalff FROM tabortff t JOIN filrad f ON t.Postnr = f.Postnr 
@@ -703,6 +785,20 @@ if (isset($_POST['behandla'])) {
         
         // Stäng listfil
         fclose($fh_lista);
+            
+        $mail->clearAttachments();     
+        $mail->addAttachment($filnamn_lista);               
+        $mail->setFrom('biblioteket@kth.se');
+        $mail->addAddress($Epost);
+        $mail->Subject  = 'Behandlade filer';
+        $mail->Body     = $message;
+        if(!$mail->send()) {
+           echo ' Fel vid skickande av meddelande.';
+           echo ' Fel: ' . $mail->ErrorInfo;
+        } 
+        else {
+           echo ' Nya filer har skickats.';
+        }                    
      
     // *** Slut Wos-delen ***
     }
@@ -711,6 +807,7 @@ if (isset($_POST['behandla'])) {
     // Loopa genom filen för kontroll - början
         $filnamn = $filnamn_ut;
         $fp_ut = fopen($filnamn, 'w'); // CEWI 2021-09-21
+
         while ($line = fgets($fh_in)) {
             $radnr = $radnr + 1;       
             $taggen = substr($line, 0, 2);
@@ -743,6 +840,7 @@ if (isset($_POST['behandla'])) {
 
     echo "<script>alert('Filen är klar!');</script>";
 
+ }
 }
 
 ?>
@@ -774,14 +872,14 @@ function handleClick(Typ) {
 <h2>MANUELLT UTTAGEN FRÅN WOS ELLER SCOPUS</h2>
 <br />
 <h3>FÖR FILTYPEN WOS GÖRS:</h3>
-<h4>1) Tar bort författare om de är fler än 30. Då skrivs första författare, KTH-författare och sista författare med tillägget "et al."</h4>
-<h4>2) Val av KTH-ledtråd ger $$$ framför KTH-författare</h4>
-<h4>3) Tar bort copyright-texter i Abstract</h4>
+1) Tar bort författare om de är fler än 30. Då skrivs första författare, KTH-författare och sista författare med tillägget "et al." <br />
+2) Val av KTH-ledtråd ger $$$ framför KTH-författare <br />
+3) Tar bort copyright-texter i Abstract <br />
 <h3>FÖR FILTYPEN SCOPUS GÖRS:</h3>
-<h4>Tar bort copyright-texter i Abstract</h4>
+Tar bort copyright-texter i Abstract <br />
 <br />
 
-<form action="d_behandlafil_man_m_l_25.php" method="post">
+<form action="d_behandlafil_man_m_l_25.php" method="post" enctype="multipart/form-data">
     <h3>VÄLJ FILTYP WOS ELLER SCOPUS</h3>
     Ange filtyp:
     <label><Input type = 'Radio' id = "r1" Name = 'Filtyp' onclick="javascript:handleClick(this);" value= 'wos' checked>WoS</label>
@@ -801,24 +899,27 @@ function handleClick(Typ) {
     <label><Input type = 'Radio' Name ='KTH_d_f' value= 'ja' checked>Ja</label>
     <label><Input type = 'Radio' Name ='KTH_d_f' value= 'nej'>Nej</label>    
     </div>
-        
+    <br />
+    <b>Välj fil att ladda upp:</b>
+    <input type="file" name="fileToUpload" id="fileToUpload">
+    <br />    
     <br />
 
                 <b>Handläggare:</b><br />
                 <select id="Handlista" name="Handl">
                     <option value=""></option>
                     <option value="Anders">Anders</option>
-                    <option value="Camilla">Camilla</option>
-                    <option value="Cecilia We">Cecilia We</option>
-                    <option value="Cecilia Wi">Cecilia Wi</option>
+                    <option value="Cecilia">Cecilia</option>
                     <option value="Greta">Greta</option>
-                    <option value="Hamrin">Hamrin</option>
                     <option value="Johan">Johan</option>
-                    <option value="Margareta">Margareta</option>
                     <option value="Sam">Sam</option>
                     <option value="Ulf">Ulf</option>
                 </select>
-                <br /><br /><br /> 
+                <br /><br />
+                
+		<b>Skicka till e-post:</b> &nbsp;
+		<input type="text" name="Epost" size="30"/>&nbsp;&nbsp; 
+                <br /><br /><br />               
 
     <input type="submit" name="behandla" style="background-color:#0fb821" value="Behandla"/><br /><br />
 
