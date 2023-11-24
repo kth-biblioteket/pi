@@ -29,8 +29,7 @@
 
 <ul>
 
-        <li><h3><a href='d_behandlafil_man_m_l_25.php'>MANUELLT UTTAGEN FIL</a></h3></li>                    
-	<li><h3><a href='d_behandlafil_man_m_l.php'>Föregående version av behandla fil</a></h3></li>	
+        <li><h3><a href='d_behandlafil_man_m_l_25.php'>MANUELLT UTTAGEN FIL</a></h3></li>                    	
 
 </ul>
 

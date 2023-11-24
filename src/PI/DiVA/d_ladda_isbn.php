@@ -2,6 +2,7 @@
     session_start(); 
     require_once('config.php.inc');
 ?>
+
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -25,8 +26,8 @@
     $username = $_SESSION['anv'];
     $password = $_SESSION['ord'];
     $hostname = $_SESSION['hnamn'];
-    $dbname = $_SESSION['dbnamn'];
-    
+    $dbname = 'hant_isbn';
+   
 if (isset($_POST['ladda'])) { 
 
     try {
@@ -68,13 +69,20 @@ if (isset($_POST['ladda'])) {
                     $uploadOk = 0;
                 }
                 else {
-                      if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-                          echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
-                      } 
+                      if (strpos($target_file, ' ') !== false) {
+                         echo "Tyvärr, filnamnet får inte innehålla blanktecken.";
+                         $uploadOk = 0;                        
+                      }
                       else {
-                            echo "Tyvärr, filen gick inte att ladda upp.";
-                            $uploadOk = 0;
-                      }  
+                            
+                      		if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                          	    echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
+                      		} 
+                      		else {
+                                    echo "Tyvärr, filen gick inte att ladda upp.";
+                            	    $uploadOk = 0;
+                      		}  
+                    }
                 }    
           }
     }
@@ -138,7 +146,7 @@ if (isset($_POST['ladda'])) {
         echo '</script>';            
     }  
     
-    }   
+  }   
     
 }
 
@@ -193,7 +201,7 @@ if (isset($_POST['min_nivaa'])) {
 
 <br />
 
-<form action="ladda_isbn.php" method="post" enctype="multipart/form-data">
+<form action="d_ladda_isbn.php" method="post" enctype="multipart/form-data">
 
 Välj fil att ladda upp:
 <input type="file" name="fileToUpload" id="fileToUpload">
@@ -211,7 +219,7 @@ Miniminivå ISBN:
 <input type="text" name="MinNivISBN" value="<?php echo $min_niv_isbn; ?>" size="5"  /><br /><br />
 <br /><br />
 
-<a href='isbn_meny.php'>TILL MENYN</a>
+<a href='d_isbn_meny.php'>TILL MENYN</a>
 
 </form>
 

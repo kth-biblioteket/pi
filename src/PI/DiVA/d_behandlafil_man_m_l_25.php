@@ -100,13 +100,20 @@ if (isset($_POST['behandla'])) {
                     $uploadOk = 0;
                 }
                 else {
-                      if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-                          echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
-                      } 
+                      if (strpos($target_file, ' ') !== false) {
+                         echo "Tyvärr, filnamnet får inte innehålla blanktecken.";
+                         $uploadOk = 0;                        
+                      }
                       else {
-                            echo "Tyvärr, filen gick inte att ladda upp.";
-                            $uploadOk = 0;
-                      }  
+                            
+                      		if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                          	    echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
+                      		} 
+                      		else {
+                                    echo "Tyvärr, filen gick inte att ladda upp.";
+                            	    $uploadOk = 0;
+                      		}  
+                    }
                 }    
           }
     }    
@@ -209,15 +216,15 @@ if (isset($_POST['behandla'])) {
             $stmt_f->bindParam(':Rad', $line);
 
             try {
-               $stmt_f->execute(); 
+            $stmt_f->execute(); 
             } catch (Exception $e) {
               echo 'Caught exception: ',  $e->getMessage(), "\n";
-               $stmt_x = $pdo->prepare("INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES (:DatumTid,:Radnr,:Postnr,'FEL')");
-               $stmt_f->bindParam(':DatumTid', $DatumTid);
-               $stmt_f->bindParam(':Radnr', $radnr);
-               $stmt_f->bindParam(':Postnr', $postnr);
-               $stmt_x->execute();
-            }  
+            $stmt_x = $pdo->prepare("INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES (:DatumTid,:Radnr,:Postnr,'FEL')");
+            $stmt_f->bindParam(':DatumTid', $DatumTid);
+            $stmt_f->bindParam(':Radnr', $radnr);
+            $stmt_f->bindParam(':Postnr', $postnr);
+            $stmt_x->execute();
+}
 
 
 
@@ -227,8 +234,8 @@ if (isset($_POST['behandla'])) {
 
         $pdo->commit();
         // Stäng infil
-        fclose($fh_in); 
-
+        fclose($fh_in);
+        
 
         // Kontrollera om det finns affilieringar
         $stmt_aff = $pdo->prepare("SELECT * FROM filrad WHERE persondatum = :DatumTid AND substring(rad,1,2) = 'C1' AND Rad LIKE '%[%' LIMIT 1");
@@ -244,7 +251,6 @@ if (isset($_POST['behandla'])) {
         // AF-poster
         $stmt_i = $pdo->prepare("INSERT INTO tabortff (Persondatum,Postnr,Antalff) VALUES (:DatumTid,:Postnr,:Antalff)");        
  
-        $pdo->beginTransaction();
         $sql = "SELECT Postnr,COUNT(*) AS Antalff FROM filrad WHERE substring(rad,1,2) = 'AF' and Persondatum = '" . $DatumTid . "' GROUP BY postnr";
 
         $stmt = $pdo->query( $sql );
@@ -444,6 +450,7 @@ if (isset($_POST['behandla'])) {
             $stmt_u_t->execute();  
 
         }
+
     }
    
     $sql_d = "SELECT max(Postnr) AS MaxPostnr FROM filrad WHERE Persondatum = '" . $DatumTid . "'";

@@ -54,14 +54,21 @@ if (isset($_POST['ladda'])) {
                     $uploadOk = 0;
                 }
                 else {
-                      if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-                          echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
-                      } 
+                      if (strpos($target_file, ' ') !== false) {
+                         echo "Tyvärr, filnamnet får inte innehålla blanktecken.";
+                         $uploadOk = 0;                        
+                      }
                       else {
-                            echo "Tyvärr, filen gick inte att ladda upp.";
-                            $uploadOk = 0;
-                      }  
-                }    
+                            
+                      		if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
+                          	    echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
+                      		} 
+                      		else {
+                                    echo "Tyvärr, filen gick inte att ladda upp.";
+                            	    $uploadOk = 0;
+                      		}  
+                    }
+                }      
           }
     }
   
