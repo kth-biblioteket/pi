@@ -7,6 +7,10 @@
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 
+<! Författare: Cecilia Wiklander>
+<! Syfte: Leta_KTH-anställda-hantering>
+<! Ändringar: >
+
 <head>
 
     <meta charset="utf-8">

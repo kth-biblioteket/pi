@@ -6,6 +6,10 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
+    
+<! Författare: Cecilia Wiklander>
+<! Syfte: ISBN-hantering>
+<! Ändringar: >
 
 <head>
 
@@ -112,12 +116,13 @@ if (isset($_POST['ladda'])) {
                         if ($max_isbn < trim($isbn)) {
                             $sql_i = "INSERT INTO oanv_isbn (ISBN,Importdatum) 
                             VALUES ('" . trim($isbn) . "',CURDATE())"; 
+                            $stmt = $pdo->query( $sql_i );
                         }  
                         else {
                             echo 'Fel vid laddning - ISBN-nummer tidigare än redan inladdade!';
                             $finns_ej = FALSE;
                         }        
-                        $stmt = $pdo->query( $sql_i );
+                        
                     }
                     catch (PDOException $e) {
                         echo '<script language="javascript">';

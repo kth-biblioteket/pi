@@ -6,7 +6,7 @@
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
 
 <! Författare: Cecilia Wiklander>
-<! Syfte: DiVA-hantering>
+<! Syfte: Leta-KTH-anställda-hantering>
 <! Ändringar: >
 
 <head>
