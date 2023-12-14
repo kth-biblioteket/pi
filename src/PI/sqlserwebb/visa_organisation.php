@@ -3,6 +3,10 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
 
+<! Författare: Cecilia Wiklander>
+<! Syfte: Adressrättnings-hantering>
+<! Ändringar: >
+
 <head>
 
     <meta charset="utf-8">
@@ -30,17 +34,23 @@
     $orgtyp = $_POST['Orgtyp'];
     $orgid = $_POST['Orgid'];
     $rorid = $_POST['RORid'];
+    $kommentar = $_POST['Kommentar'];
 
     $username = $_SESSION['anv'];
     $password = $_SESSION['ord'];
     $hostname = $_SESSION['hnamn'];
     $dbname = $_SESSION['dbnamn'];
 
+    if (isset($_POST['exaktkoll'])) {
+       $exaktkoll = true;
+    }
+
     $Sk = "'";
     $Ers = "''";
 
     $lok_namn = str_replace($Sk, $Ers, $lok_namn);
     $eng_namn = str_replace($Sk, $Ers, $eng_namn);
+    $kommentar = str_replace($Sk, $Ers, $kommentar);
 
     $sqldel = "";
 
@@ -55,6 +65,7 @@
         $_SESSION['orgtyp'] = $orgtyp;
         $_SESSION['orgid'] = $orgid;
         $_SESSION['RORid'] = $rorid;
+        $_SESSION['Kommentar'] = $kommentar;
     }
     else {
     $username = $_SESSION['anv']; 
@@ -63,7 +74,8 @@
         $eng_namn = $_SESSION['engelsktnamn'];
         $orgtyp = $_SESSION['orgtyp'];
         $orgid = $_SESSION['orgid']; 
-        $rorid = $_SESSION['RORid'];            
+        $rorid = $_SESSION['RORid']; 
+        $kommentar = $_SESSION['Kommentar'];           
     }
 
 	// Write out our query.
@@ -85,22 +97,46 @@
     {
         if (strlen($sqldel) > 0)
     	{
+           if ($exaktkoll) {
     		$sqldel .= " AND upper(Name_local) like upper('%$lok_namn%')";
+           }
+           else {
+    		$sqldel .= " AND upper(Name_local) COLLATE Latin1_General_CI_AI like upper('%$lok_namn%')";
+           }
+
     	}	
         else
         {
-		$sqldel .= " upper(Name_local) like upper('%$lok_namn%')";    
+           if ($exaktkoll) {
+		$sqldel .= " upper(Name_local) like upper('%$lok_namn%')";  
+           }
+           else {
+		$sqldel .= " upper(Name_local) COLLATE Latin1_General_CI_AI like upper('%$lok_namn%')";
+           }
+  
         }
     }
     if (strlen($eng_namn) > 0)
     {
         if (strlen($sqldel) > 0)
     	{
+           if ($exaktkoll) {
     		$sqldel .= " AND upper(Name_en) like upper('%$eng_namn%')";
+           }
+           else {
+    		$sqldel .= " AND upper(Name_en) COLLATE Latin1_General_CI_AI like upper('%$eng_namn%')";
+           }
+
     	}	
         else
         {
-		$sqldel .= " upper(Name_en) like upper('%$eng_namn%')";        
+           if ($exaktkoll) {
+		$sqldel .= " upper(Name_en) like upper('%$eng_namn%')"; 
+           }
+           else {
+		$sqldel .= " upper(Name_en) COLLATE Latin1_General_CI_AI like upper('%$eng_namn%')";
+           }
+       
         }
     }
     if (strlen($orgtyp) > 0)
@@ -123,6 +159,17 @@
         else
         {
 		$sqldel .= " upper(ROR_id) like upper('%$rorid%')";        
+        }
+    }
+    if (strlen($kommentar) > 0)
+    {
+        if (strlen($sqldel) > 0)
+    	{
+    		$sqldel .= " AND upper(Comment) like upper('%$kommentar%')";
+    	}	
+        else
+        {
+		$sqldel .= " upper(Comment) like upper('%$kommentar%')";        
         }
     }
     if (strlen($sqldel) == 0)

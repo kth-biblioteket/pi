@@ -3,6 +3,10 @@
 <!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
+<! Författare: Cecilia Wiklander>
+<! Syfte: Adressrättnings-hantering>
+<! Ändringar: >
+
 <head>
 
     <meta charset="utf-8">
@@ -77,6 +81,9 @@
     $str_3_till = str_replace($Sk, $Ers, $str_3_till);
     $str_ej_1_till = str_replace($Sk, $Ers, $str_ej_1_till);
     $str_ej_2_till = str_replace($Sk, $Ers, $str_ej_2_till);
+    $org_1_till = str_replace($Sk, $Ers, $org_1_till);
+    $org_2_till = str_replace($Sk, $Ers, $org_2_till);
+    $org_3_till = str_replace($Sk, $Ers, $org_3_till);
     $stad_1_till = str_replace($Sk, $Ers, $stad_1_till);
     $stad_2_till = str_replace($Sk, $Ers, $stad_2_till);
     $stad_3_till = str_replace($Sk, $Ers, $stad_3_till);

@@ -3,6 +3,10 @@
 <!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
+<! Författare: Cecilia Wiklander>
+<! Syfte: Adressrättnings-hantering>
+<! Ändringar: >
+
 <head>
 
     <meta charset="utf-8">
@@ -62,10 +66,13 @@
 
     $stad_till = str_replace($Sk, $Ers, $stad_till);
     $org_till = str_replace($Sk, $Ers, $org_till);
+    $org_1_till = str_replace($Sk, $Ers, $org_1_till);
+    $org_2_till = str_replace($Sk, $Ers, $org_2_till);
+    $org_till = str_replace($Sk, $Ers, $org_till);
     $stad_1_till = str_replace($Sk, $Ers, $stad_1_till);
     $stad_2_till = str_replace($Sk, $Ers, $stad_2_till);
     $stad_3_till = str_replace($Sk, $Ers, $stad_3_till);
-    $land_till = str_replace($Sk, $Ers, $land_till);
+    $land_3_till = str_replace($Sk, $Ers, $land_3_till);
     $land_1_till = str_replace($Sk, $Ers, $land_1_till);
     $land_2_till = str_replace($Sk, $Ers, $land_2_till);
     $land_3_till = str_replace($Sk, $Ers, $land_3_till);

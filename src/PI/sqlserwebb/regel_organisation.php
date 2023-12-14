@@ -3,6 +3,10 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
+
+<! Författare: Cecilia Wiklander>
+<! Syfte: Adressrättnings-hantering>
+<! Ändringar: >
     
 <head>
 

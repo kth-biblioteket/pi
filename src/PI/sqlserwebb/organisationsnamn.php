@@ -4,6 +4,10 @@
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 
+<! Författare: Cecilia Wiklander>
+<! Syfte: Adressrättnings-hantering>
+<! Ändringar: >
+
 <head>
 
     <meta charset="utf-8">
@@ -104,7 +108,7 @@
 
 	// Write out our query.
 
-	$query = "SELECT Display_name FROM Country";
+	$query = "SELECT Display_name FROM Country ORDER BY Display_name";
 
 	// Execute it, or let it throw an error message if there's a problem.
 
@@ -153,7 +157,11 @@ Lokalt namn: <br />
 Engelskt namn: <br />
 <input type="text" name="Engelsktnamn" size="70" /><br /><br />
 ROR-id: <br />
-<input type="text" name="RORid" size="70" />
+<input type="text" name="RORid" size="70" /><br /><br />
+Kommentar: <br />
+<input type="text" name="Kommentar" size="70" /><br /><br />
+Exakt namnsökning
+<input type="checkbox" name="exaktkoll" value="checkbox_value" checked>
 
 </form>
 
