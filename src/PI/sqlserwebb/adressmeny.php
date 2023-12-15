@@ -34,7 +34,6 @@
 	<li><h3><a href='laddaorgregler.php'>LADDA FILER MED REGLER</a></h3></li>	
 	<li><h3><a href='senaste_koerning.php'>SENASTE ADRESSRÄTTNING</a></h3></li>
 	<li><h3><a href='https://bibliometrics.lib.kth.se/checks-bibliometrics.html'>KONTROLLER FÖR BIBLIOMETRIDATA</a></h3></li>
-	<li><h3><a href='organisationsnamn_ny.php'>-</a></h3></li>	
 </ul>
 
 <br /> 
