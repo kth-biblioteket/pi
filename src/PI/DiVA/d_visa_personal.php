@@ -6,7 +6,7 @@
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
 
 <! Författare: Cecilia Wiklander>
-<! Syfte: Leta-KTH-anställda-hantering>
+<! Syfte: DiVA-hantering>
 <! Ändringar: >
 
 <head>
@@ -66,12 +66,12 @@
 
     $sql = "SELECT p.KTH_id,CONCAT(p.Enamn,', ',p.Fnamn) AS Namn,
     (SELECT ok.ORCIDid FROM orcid_kthid ok WHERE ok.KTH_id = p.KTH_id) AS ORCIDid,
-    (SELECT o1.Orgnamn FROM organisation o1 WHERE o1.Orgkod = p.Orgkod) AS Orgnamn,
+    o1.Orgnamn AS Orgnamn,
     (SELECT o2.Orgnamn FROM organisation o2 WHERE o2.Orgkod = p.Skol_kod) AS Skola,
     p.Bef_ben AS Befattning,p.Anst_nuv_bef AS Fr,p.Bef_t_o_m AS Till,p.Fil_datum AS Datum 
-    FROM personal p WHERE ";
+    FROM personal p, organisation o1 WHERE ";
 
-    $sql_efter = " ORDER BY p.Enamn, p.Fnamn, p.Anst_nuv_bef, p.Fil_datum";
+    $sql_efter = " AND o1.Orgkod = p.Orgkod ORDER BY p.Enamn, p.Fnamn, p.Anst_nuv_bef, p.Fil_datum";
 
     // Både förnamn och efternamn ifyllt att söka på
 
@@ -140,7 +140,9 @@
     }
     else {
         // Enbart att efternamn ifyllt att söka på
+        
         if (strlen($Enamn) > 0 && strlen($Fnamn) == 0) {
+          
              if (stripos($Test_Enamn,'*') > 0) {
                 $E_sql = "p.Enamn LIKE '";
                 $epos = 0;
@@ -163,11 +165,13 @@
                 $sql = $sql . "p.Enamn = '" . $Enamn . "' ";                 
              }
              $sql = $sql . $sql_efter;
+         
              if ($granskad == 'KONTROLL') {
              $stmt = $pdo->query( $sql ); 
              }           
         }
         else {
+           
             // Enbart förnamn ifyllt att söka på
             if (strlen($Fnamn) > 0 && strlen($Enamn) == 0) {
                 if (stripos($Test_Fnamn,'*')) {
