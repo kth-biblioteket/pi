@@ -92,7 +92,52 @@ REPO_TYPE=ref
 12. Github Actions bygger en dockerimage i github packages
 13. Starta applikationen med docker compose up -d --build i "local/docker/pi"
 
+## Local Development (without Traefik)
 
+Use the dedicated local compose file: `docker-compose.local.yml`.
 
+Local setup uses:
 
+- local image build from this repository (no GHCR pull)
+- `Dockerfile.local` (skips SQL Server ODBC installation for local use)
+- internal bridge network (no external `apps-net` required)
+- MySQL initialization from `dbinit/`
+- ports `8080` (web) and `3307` (MySQL)
 
+### Step-by-step: run locally
+
+1. Open a terminal in the repository root.
+
+2. Build and start containers:
+   - `docker compose -f docker-compose.local.yml up -d --build`
+
+3. Verify containers are running:
+   - `docker compose -f docker-compose.local.yml ps`
+
+4. Open the app:
+   - `http://localhost:8080/PI/DiVA/index.php`
+
+5. (Optional) Follow logs:
+   - `docker compose -f docker-compose.local.yml logs -f`
+
+6. Stop containers:
+   - `docker compose -f docker-compose.local.yml down`
+
+7. Stop and remove database volume (reset local DB):
+   - `docker compose -f docker-compose.local.yml down -v`
+
+### Troubleshooting
+
+- If you previously tried to build with `Dockerfile` and saw `msodbcsql17` errors, use only:
+  - `docker compose -f docker-compose.local.yml up -d --build`
+- If `8080` or `3307` is already in use, stop conflicting services and run again.
+- If you changed SQL files under `dbinit/`, recreate the DB volume:
+  - `docker compose -f docker-compose.local.yml down -v`
+  - `docker compose -f docker-compose.local.yml up -d --build`
+
+### Notes
+
+- `docker-compose.yml` is production-oriented and expects external networking and environment variables for GHCR/Traefik.
+- Local DB config is provided through:
+  - `src/PI/DiVA/config.php.inc`
+  - `src/PI/ISBN/config.php.inc`
