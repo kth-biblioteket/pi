@@ -141,3 +141,9 @@ Local setup uses:
 - Local DB config is provided through:
   - `src/PI/DiVA/config.php.inc`
   - `src/PI/ISBN/config.php.inc`
+
+## Architecture and Flow
+
+For a project overview with Mermaid charts (architecture, navigation, and data flow), see:
+
+- `README_FLOW.md`
