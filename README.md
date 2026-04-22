@@ -147,3 +147,9 @@ Local setup uses:
 For a project overview with Mermaid charts (architecture, navigation, and data flow), see:
 
 - `README_FLOW.md`
+
+## Modernization Guide
+
+For a repo-specific plan to improve or rewrite PI into a more coherent production-ready system, see:
+
+- `README_REWRITE.md`
