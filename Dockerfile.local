@@ -1,0 +1,28 @@
+FROM php:7.3-apache
+
+RUN a2enmod rewrite && \
+cp $PHP_INI_DIR/php.ini-development $PHP_INI_DIR/php.ini && \
+docker-php-ext-install mysqli pdo pdo_mysql && \
+apt-get update && \
+apt-get -y install nano locales && \
+sed -i '/en_GB.UTF-8/s/^# //g' /etc/locale.gen && \
+locale-gen && \
+sed -i '/sv_SE.UTF-8/s/^# //g' /etc/locale.gen && \
+locale-gen
+
+ENV LANG en_GB.UTF-8
+ENV LANGUAGE en_GB:en
+ENV LC_ALL en_GB.UTF-8
+
+# Disable error display
+RUN sed -i -e 's/^display_errors\s*=\s*On/display_errors = Off/g' $PHP_INI_DIR/php.ini
+
+# Allow slightly larger uploads for local testing
+RUN sed -i -e 's/upload_max_filesize = 2M/upload_max_filesize = 20M/g' $PHP_INI_DIR/php.ini && \
+    sed -i -e 's/post_max_size = 8M/post_max_size = 20M/g' $PHP_INI_DIR/php.ini
+
+COPY ./src /var/www/html
+
+# Ensure upload directories are writable by Apache user
+RUN mkdir -p /var/www/html/PI/DiVA/DATAFILER /var/www/html/PI/sqlserwebb/DATAFILER && \
+    chown -R www-data:www-data /var/www/html/PI/DiVA/DATAFILER /var/www/html/PI/sqlserwebb/DATAFILER

@@ -29,9 +29,9 @@
 
         try {
             
-	    $username = "pi_anv";
-            $password = "V#puBL09";
-            $dbname = "hant_diva";
+	    $username = $db_user;
+            $password = $db_pass;
+            $dbname = $diva_dbname;
             $dbh = new PDO("mysql:host=$hostname;dbname=$dbname", $username, $password);
             $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $_SESSION['anv'] = $username;
