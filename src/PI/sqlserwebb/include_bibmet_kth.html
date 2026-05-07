@@ -1,0 +1,43 @@
+<link href="bibmet-kth.css" rel="stylesheet">
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const tableScroll = document.getElementById("rules-table-scroll");
+        const topScroll = document.getElementById("rules-scroll-top");
+        const topScrollSpacer = document.getElementById("rules-scroll-spacer");
+        const table = document.getElementById("rules-table");
+
+        if (!tableScroll || !topScroll || !topScrollSpacer || !table) {
+            return;
+        }
+
+        const syncSpacerWidth = () => {
+            topScrollSpacer.style.width = `${table.scrollWidth}px`;
+        };
+
+        let isSyncingTop = false;
+        let isSyncingTable = false;
+
+        topScroll.addEventListener("scroll", () => {
+            if (isSyncingTop) {
+                isSyncingTop = false;
+                return;
+            }
+
+            isSyncingTable = true;
+            tableScroll.scrollLeft = topScroll.scrollLeft;
+        });
+
+        tableScroll.addEventListener("scroll", () => {
+            if (isSyncingTable) {
+                isSyncingTable = false;
+                return;
+            }
+
+            isSyncingTop = true;
+            topScroll.scrollLeft = tableScroll.scrollLeft;
+        });
+
+        syncSpacerWidth();
+        window.addEventListener("resize", syncSpacerWidth);
+    });
+</script>
