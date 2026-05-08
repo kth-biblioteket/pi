@@ -1,4 +1,8 @@
-﻿<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+$dbh = bibmet_sqlsrv_connect_or_redirect();
+?>
 
 <!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -46,9 +50,6 @@
         $hostname = $_SESSION['hnamn'];
         $dbname = $_SESSION['dbnamn'];
 
-        $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
-
-        $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         // Visa regeln att ta bort
 

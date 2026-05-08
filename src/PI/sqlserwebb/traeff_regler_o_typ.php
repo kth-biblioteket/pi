@@ -1,4 +1,8 @@
-﻿<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+$dbh = bibmet_sqlsrv_connect_or_redirect();
+?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
@@ -37,9 +41,6 @@
     $dbname = $_SESSION['dbnamn'];
     $regel_id = $_SESSION['regel_id'];
     
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
-
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     $sql = "SELECT COUNT(*) AS Antal FROM Unified_address ua WHERE R_o_t_m_id = " . $regel_id . "";
 

@@ -1,4 +1,8 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+$dbh = bibmet_sqlsrv_connect_or_redirect();
+?>
 
 <!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -359,9 +363,6 @@
     $hostname = $_SESSION['hnamn'];
     $dbname = $_SESSION['dbnamn'];
 
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
-
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     if (isset($_POST['spara'])) {
         $land_s = $_POST['Land'];
@@ -460,9 +461,34 @@
             }
         }
 
-        $n_regel_o = $_SESSION['n_regel_o'];
+        $n_regel_o = isset($_SESSION['n_regel_o']) ? $_SESSION['n_regel_o'] : "";
+        $regel_o_fingerprint = hash('sha256', json_encode(array(
+            $land_s,
+            $stad_s,
+            $org_s_1,
+            $org_s_2,
+            $org_s_3,
+            $delas,
+            $land_1,
+            $land_2,
+            $land_3,
+            $stad_1,
+            $stad_2,
+            $stad_3,
+            $org_1,
+            $org_2,
+            $org_3,
+            $fr,
+            $ti
+        ), JSON_UNESCAPED_UNICODE));
 
-        if ($koll_svar && $n_regel_o <> $org_s_1) {
+        if ($koll_svar && $n_regel_o == $regel_o_fingerprint) {
+            echo '<script language="javascript">';
+            echo 'alert("Regeln har redan sparats. Ändra något fält innan du sparar igen.")';
+            echo '</script>';
+        }
+
+        if ($koll_svar && $n_regel_o <> $regel_o_fingerprint) {
 
             $pos_f = strpos($org_1, '[' );
             $pos_e = strpos($org_1, ']' );
@@ -529,11 +555,6 @@
             	      $sql_org_3 = "SELECT Unified_org_id FROM Unified_org_names WHERE TRIM(Name_en) = TRIM('" . $org_3_o . "')";
                    }
 
-                    $stmt = $dbh->query( $sql_org_2 );
-                    foreach ($stmt as $row) {
-                        $org_id_2 = $row['Unified_org_id'];      
-                    }
-
                     $stmt = $dbh->query( $sql_org_3 );
                     foreach ($stmt as $row) {
                         $org_id_3 = $row['Unified_org_id'];      
@@ -563,6 +584,13 @@
                $sql_v_stad_s = $stad_s . "','";
             }
 
+            $regel_sparad = false;
+            $regel_2_sparad = false;
+            $regel_3_sparad = false;
+
+            try {
+                $dbh->beginTransaction();
+
             if ($delas == 1) {
                 $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
                 . $sql_stad_s
@@ -587,22 +615,11 @@
                 . $sql_v_stad_s 
                 . $org_s_1 . "'," . $delas . 
                 ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 . 
-                "'," . $org_id_2 . ",'" . $land_ . "','" . $stad_3 . "'," . $org_id_3 . ",'" . 
+                "'," . $org_id_2 . ",'" . $land_3 . "','" . $stad_3 . "'," . $org_id_3 . ",'" . 
                 $username . "',GETDATE(),1" . $sql_v_tid . ")";        
             }      
-	    $stmt = $dbh->query( $sql_i );
-
-            if ($count = $stmt->rowCount() > 0) {
-                echo '<script language="javascript">';
-                echo 'alert("Regeln är sparad!")';
-                echo '</script>';  
-                $_SESSION['n_regel_o'] = $org_s_1;          
-            }
-            else {
-                echo '<script language="javascript">';
-                echo 'alert("Fel vid sparande av regeln!")';
-                echo '</script>';            
-            }
+	        $stmt = $dbh->query( $sql_i );
+                $regel_sparad = true;
 
             if (strlen($org_s_2) > 0) {
 
@@ -630,23 +647,12 @@
                 	. $sql_v_stad_s 
                 	. $org_s_2 . "'," . $delas . 
                 	",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 . 
-                	"'," . $org_id_2 . ",'" . $land_ . "','" . $stad_3 . "'," . $org_id_3 . ",'" . 
+                	"'," . $org_id_2 . ",'" . $land_3 . "','" . $stad_3 . "'," . $org_id_3 . ",'" . 
                 	$username . "',GETDATE(),1" . $sql_v_tid . ")";        
             	}
 
-	    	$stmt = $dbh->query( $sql_i );
-
-            	if ($count = $stmt->rowCount() > 0) {
-                	echo '<script language="javascript">';
-                	echo 'alert("Regel 2 är sparad!")';
-                	echo '</script>';           
-            	}
-            	else {
-                	echo '<script language="javascript">';
-                	echo 'alert("Fel vid sparande av regel 2!")';
-                	echo '</script>';            
-            	}
-            
+	    	    $stmt = $dbh->query( $sql_i );
+                    $regel_2_sparad = true;
             }
 
             if (strlen($org_s_3) > 0) {
@@ -675,23 +681,44 @@
                 	. $sql_v_stad_s 
                 	. $org_s_3 . "'," . $delas . 
                 	",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 . 
-                	"'," . $org_id_2 . ",'" . $land_ . "','" . $stad_3 . "'," . $org_id_3 . ",'" . 
+                	"'," . $org_id_2 . ",'" . $land_3 . "','" . $stad_3 . "'," . $org_id_3 . ",'" . 
                 	$username . "',GETDATE(),1" . $sql_v_tid . ")";        
             	}
 
-	    	$stmt = $dbh->query( $sql_i );
+	    	    $stmt = $dbh->query( $sql_i );
+                    $regel_3_sparad = true;
+            }
 
-            	if ($count = $stmt->rowCount() > 0) {
-                	echo '<script language="javascript">';
-                	echo 'alert("Regel 3 är sparad!")';
-                	echo '</script>';           
-            	}
-            	else {
-                	echo '<script language="javascript">';
-                	echo 'alert("Fel vid sparande av regel 3!")';
-                	echo '</script>';            
-            	}
 
+                $dbh->commit();
+
+            } catch (Exception $e) {
+                if ($dbh->inTransaction()) {
+                    $dbh->rollBack();
+                }
+                $regel_sparad = false;
+                $regel_2_sparad = false;
+                $regel_3_sparad = false;
+                echo '<script language="javascript">';
+                echo 'alert("Fel vid sparande av regeln!")';
+                echo '</script>';
+            }
+
+            if ($regel_sparad) {
+                $_SESSION['n_regel_o'] = $regel_o_fingerprint;
+                echo '<script language="javascript">';
+                echo 'alert("Regeln är sparad!")';
+                echo '</script>';
+            }
+            if ($regel_2_sparad) {
+                echo '<script language="javascript">';
+                echo 'alert("Regel 2 är sparad!")';
+                echo '</script>';
+            }
+            if ($regel_3_sparad) {
+                echo '<script language="javascript">';
+                echo 'alert("Regel 3 är sparad!")';
+                echo '</script>';
             }
 
             // Blanka sparad regels textfält

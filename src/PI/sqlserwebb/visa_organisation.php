@@ -1,4 +1,8 @@
-﻿<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+$dbh = bibmet_sqlsrv_connect_or_redirect();
+?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
@@ -54,9 +58,6 @@
 
     $sqldel = "";
 
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
-
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     if (strlen($land) > 0 || strlen($lok_namn) > 0 || strlen($eng_namn) > 0 || strlen($orgtyp) > 0 || strlen($orgid) > 0 || strlen($rorid) > 0) {
         $_SESSION['land'] = $land;

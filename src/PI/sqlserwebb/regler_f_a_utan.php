@@ -1,5 +1,7 @@
 <?php
-session_start();
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+$dbh = bibmet_sqlsrv_connect_or_redirect();
 
 function request_value($key, $default = "")
 {
@@ -30,11 +32,6 @@ $errors = [];
 $rows = [];
 $totalRows = 0;
 $totalPages = 1;
-
-$username = $_SESSION["anv"] ?? "";
-$password = $_SESSION["ord"] ?? "";
-$hostname = $_SESSION["hnamn"] ?? "";
-$dbname = $_SESSION["dbnamn"] ?? "";
 
 $whereSql = "NOT EXISTS (
     SELECT *
@@ -96,9 +93,6 @@ $selectSql = "
 ";
 
 try {
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname", $username, $password);
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
     $countStmt = $dbh->query("SELECT COUNT(*) FROM Rule_full_address_match r WHERE $whereSql");
     $totalRows = (int) $countStmt->fetchColumn();
     $totalPages = max(1, (int) ceil($totalRows / $pageSize));

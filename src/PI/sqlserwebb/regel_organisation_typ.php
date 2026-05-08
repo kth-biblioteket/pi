@@ -1,5 +1,7 @@
 <?php
-session_start();
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+$dbh = bibmet_sqlsrv_connect_or_redirect();
 
 function h($value)
 {
@@ -10,14 +12,6 @@ $errors = [];
 $countryOptions = "";
 
 try {
-    $username = $_SESSION["anv"] ?? "";
-    $password = $_SESSION["ord"] ?? "";
-    $hostname = $_SESSION["hnamn"] ?? "";
-    $dbname = $_SESSION["dbnamn"] ?? "";
-
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname", $username, $password);
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
     $stmt = $dbh->query("SELECT Display_name FROM country ORDER BY Display_name");
 
     foreach ($stmt as $row) {

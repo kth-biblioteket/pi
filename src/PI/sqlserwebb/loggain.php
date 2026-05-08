@@ -42,8 +42,8 @@ function validateForm() {
 
 <?php
 
-    $anv = $_POST['Anv'];
-    $ord = $_POST['Ord'];
+    $anv = isset($_POST['Anv']) ? $_POST['Anv'] : "";
+    $ord = isset($_POST['Ord']) ? $_POST['Ord'] : "";
 
     if (strlen($anv) > 0 && strlen($ord) > 0) {
 
@@ -90,6 +90,12 @@ function validateForm() {
 
 <br/>
 <h2>INLOGGNING</h2>
+
+<?php
+    if (isset($_GET['timeout']) && $_GET['timeout'] == 1) {
+        echo "<p>Sessionen har gått ut eller databasanslutningen bröts. Logga in igen.</p>";
+    }
+?>
 
 <form name="myForm" onsubmit="return validateForm()" action="loggain.php" method="post">
 

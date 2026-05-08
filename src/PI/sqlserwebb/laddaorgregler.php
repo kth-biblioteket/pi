@@ -1,4 +1,8 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+$dbh = bibmet_sqlsrv_connect_or_redirect();
+?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
@@ -81,9 +85,6 @@ if (isset($_POST['ladda'])) {
        $filnamnet = $target_file;
        $filnamnet = str_replace(' ', '', $filnamnet);
     
-       $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
-       $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);      
- 
        $felantal = false; 
        $importstatus = 99;          
        // Kontrollera antal kolumner i filen och om inläsning redan har gjorts      

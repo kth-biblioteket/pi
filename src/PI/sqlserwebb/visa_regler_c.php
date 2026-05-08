@@ -1,5 +1,7 @@
 <?php
-session_start();
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+$dbh = bibmet_sqlsrv_connect_or_redirect();
 
 function request_value($key, $default = "")
 {
@@ -34,11 +36,6 @@ $errors = [];
 $rows = [];
 $totalRows = 0;
 $totalPages = 1;
-
-$username = $_SESSION["anv"] ?? "";
-$password = $_SESSION["ord"] ?? "";
-$hostname = $_SESSION["hnamn"] ?? "";
-$dbname = $_SESSION["dbnamn"] ?? "";
 
 $whereParts = [];
 $params = [];
@@ -125,9 +122,6 @@ $selectSql = "
 ";
 
 try {
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname", $username, $password);
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
     $countStmt = $dbh->prepare("SELECT COUNT(*) FROM Rule_center_match WHERE $whereSql");
     foreach ($params as $key => $value) {
         $countStmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
