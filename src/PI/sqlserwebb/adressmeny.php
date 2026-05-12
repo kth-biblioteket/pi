@@ -1,4 +1,8 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+bibmet_require_login();
+?>
 
 <!DOCTYPE html>
 <html lang="sv">

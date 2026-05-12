@@ -92,8 +92,8 @@ function validateForm() {
 <h2>INLOGGNING</h2>
 
 <?php
-    if (isset($_GET['timeout']) && $_GET['timeout'] == 1) {
-        echo "<p>Sessionen har gått ut eller databasanslutningen bröts. Logga in igen.</p>";
+    if (isset($_GET['reason']) && $_GET['reason'] == 'timeout') {
+        echo "<p style=\"color:#c00;\">Din session har timeat ut. Logga in igen.</p>";
     }
 ?>
 
