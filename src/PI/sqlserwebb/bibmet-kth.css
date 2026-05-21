@@ -285,6 +285,12 @@
     gap: 8px;
 }
 
+.bibmet-error {
+    color: var(--kth-red);
+    font-weight: 700;
+    margin: 0 0 16px;
+}
+
 .bibmet-alert {
     background: #fff;
     border-left: 8px solid var(--kth-red);

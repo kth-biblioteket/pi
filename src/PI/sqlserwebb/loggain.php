@@ -15,8 +15,6 @@
 
     <link href="Site.css" rel="stylesheet">
 
-    <?php include('include_head_new.html'); ?>
-
 <script>
 
 function validateForm() {
@@ -38,7 +36,9 @@ function validateForm() {
 
 </head>
 
-<body>
+<body class="bibmet-body">
+
+<?php include('include_head_new.html'); ?>
 
 <?php
 
@@ -88,28 +88,42 @@ function validateForm() {
 
 ?>
 
-<br/>
-<h2>INLOGGNING</h2>
+<main class="bibmet-main bibmet-main--form">
+    <section class="bibmet-hero">
+        <p class="bibmet-eyebrow">Bibmet</p>
+        <h1 class="bibmet-title">Inloggning</h1>
+        <p class="bibmet-muted">Logga in för att hantera adressrättning.</p>
+    </section>
 
-<?php
-    if (isset($_GET['reason']) && $_GET['reason'] == 'timeout') {
-        echo "<p style=\"color:#c00;\">Din session har timeat ut. Logga in igen.</p>";
-    }
-?>
+    <section class="bibmet-panel">
+        <div class="bibmet-panel__header">
+            <h2 class="bibmet-panel__title">Ange inloggningsuppgifter</h2>
+        </div>
+        <div class="bibmet-panel__body">
+            <?php if (isset($_GET['reason']) && $_GET['reason'] == 'timeout') { ?>
+                <p class="bibmet-error">Din session har timeat ut. Logga in igen.</p>
+            <?php } ?>
 
-<form name="myForm" onsubmit="return validateForm()" action="loggain.php" method="post">
+            <form name="myForm" onsubmit="return validateForm()" action="loggain.php" method="post">
+                <div class="bibmet-form-grid">
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Användarnamn</span>
+                        <input class="bibmet-input bibmet-input--short" type="text" name="Anv" value="<?php echo htmlspecialchars($anv, ENT_QUOTES, 'UTF-8'); ?>" />
+                    </label>
 
-Användarnamn: 
-<br /><input type="text" name="Anv" value="<?php echo $anv; ?>" /> <br />
-Lösenord:
-<br /><input type="password" name="Ord" /> <br />
-<br />
-<br />
-<input type="submit" name="loggain" value="Logga in"/>
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Lösenord</span>
+                        <input class="bibmet-input bibmet-input--short" type="password" name="Ord" />
+                    </label>
+                </div>
 
-</form>
-
-<br /><br />
+                <div class="bibmet-form-actions">
+                    <input class="bibmet-button bibmet-button--primary" type="submit" name="loggain" value="Logga in"/>
+                </div>
+            </form>
+        </div>
+    </section>
+</main>
 
 </body>
 </html>

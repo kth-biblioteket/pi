@@ -105,7 +105,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     (SELECT Name_en FROM Unified_org_names WHERE Unified_org_id = Org_id_3) AS Un_org_3     
     FROM Rule_full_address_match WHERE Org_id_1 = " . $u_org_id . " OR Org_id_2 = " . $u_org_id ." OR Org_id_3 = " . $u_org_id;
 
-    $sql = $sql_fa . " UNION " . $sql_o . " UNION " . $sql_c . "ORDER BY Regeltyp DESC,Find_org_or_str_1";
+    $sql = $sql_fa . " UNION " . $sql_o . " UNION " . $sql_c . " ORDER BY Regeltyp DESC,Find_org_or_str_1";
 
     $stmt = $dbh->query( $sql );
 	
