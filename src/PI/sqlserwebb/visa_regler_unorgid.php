@@ -27,7 +27,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
 <h2>VISA REGLER ORGANISATIONSNAMN</h2>
 
-<a href='organisationsnamn.php'>TILL SÖKNING</a>&nbsp;&nbsp;<a href='visa_organisation.php'>TILL SÖKRESULTAT</a>
+<a href='organisationsnamn.php'>TILL SÖKNING/SÖKRESULTAT</a>
 </br>
 </br>
 
