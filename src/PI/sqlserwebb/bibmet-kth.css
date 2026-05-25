@@ -311,6 +311,7 @@
 
 .bibmet-button--small {
     font-size: 12px;
+    min-height: 32px;
     padding: 6px 12px;
 }
 
@@ -459,7 +460,18 @@ th.bibmet-table__actions {
     z-index: 30;
 }
 
+.bibmet-table td.bibmet-table__actions {
+    padding-bottom: 6px;
+    padding-top: 6px;
+    vertical-align: middle;
+}
+
+.bibmet-table__actions--middle {
+    vertical-align: middle;
+}
+
 .bibmet-table__action-row {
+    align-items: center;
     display: flex;
     gap: 8px;
 }

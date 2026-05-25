@@ -271,6 +271,7 @@ $lastRow = min($offset + $pageSize, $totalRows);
                 <table id="rules-table" class="bibmet-table">
                     <thead>
                         <tr>
+                            <th class="bibmet-table__actions">Åtgärder</th>
                             <?php foreach ($columns as $label => $key) : ?>
                                 <th><?php echo h($label); ?></th>
                             <?php endforeach; ?>
@@ -279,14 +280,38 @@ $lastRow = min($offset + $pageSize, $totalRows);
                     <tbody>
                         <?php if (!$rows) : ?>
                             <tr>
-                                <td colspan="<?php echo h(count($columns)); ?>" class="bibmet-empty">
+                                <td colspan="<?php echo h(count($columns) + 1); ?>" class="bibmet-empty">
                                     Inga regler hittades för organisationsnamnet.
                                 </td>
                             </tr>
                         <?php endif; ?>
 
                         <?php foreach ($rows as $row) : ?>
+                            <?php
+                            $regeltyp = (string) $row["Regeltyp"];
+                            $regelId = (string) $row["Regelid"];
+                            $visaPage = [
+                                "C" => "visa_regler_c.php",
+                                "O" => "visa_regler_o.php",
+                                "FA" => "visa_regler_f_a.php",
+                            ][$regeltyp] ?? "";
+                            $andraPage = [
+                                "C" => "aendra_regel_c.php",
+                                "O" => "aendra_regel_o.php",
+                                "FA" => "aendra_regel_f_a.php",
+                            ][$regeltyp] ?? "";
+                            ?>
                             <tr>
+                                <td class="bibmet-table__actions bibmet-table__actions--middle">
+                                    <div class="bibmet-table__action-row">
+                                        <?php if ($visaPage !== "") : ?>
+                                            <a href="<?php echo h($visaPage); ?>?Regelid=<?php echo h($regelId); ?>" class="bibmet-button bibmet-button--secondary bibmet-button--small">Visa</a>
+                                        <?php endif; ?>
+                                        <?php if ($andraPage !== "") : ?>
+                                            <a href="<?php echo h($andraPage); ?>?Regel_id=<?php echo h($regelId); ?>" class="bibmet-button bibmet-button--primary bibmet-button--small">Ändra</a>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
                                 <?php foreach ($columns as $key) : ?>
                                     <td><?php echo h($row[$key] ?? ""); ?></td>
                                 <?php endforeach; ?>
