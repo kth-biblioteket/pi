@@ -271,6 +271,9 @@ $columns = [
                 </div>
                 <div class="bibmet-action-group">
                     <a href="ny_organisation.php" class="bibmet-button bibmet-button--primary">Ny organisation</a>
+                    <a href="ny_regel_o.php" class="bibmet-button bibmet-button--secondary">Ny regel organisation</a>
+                    <a href="ny_regel_f_a.php" class="bibmet-button bibmet-button--secondary">Ny regel full adress</a>
+                    <a href="ny_regel_c.php" class="bibmet-button bibmet-button--secondary">Ny regel centra</a>
                     <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
                 </div>
             </div>
