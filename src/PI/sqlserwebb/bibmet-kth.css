@@ -193,6 +193,13 @@
     margin-bottom: 4px;
 }
 
+.bibmet-field__hint {
+    color: var(--kth-gray);
+    display: block;
+    font-size: 13px;
+    margin-top: 4px;
+}
+
 .bibmet-field-row {
     display: flex;
     flex-direction: column;
@@ -221,6 +228,35 @@
 
 .bibmet-select {
     max-width: 448px;
+}
+
+.ts-wrapper.bibmet-select {
+    max-width: 448px;
+    padding: 0;
+    width: 100%;
+}
+
+.ts-wrapper.bibmet-select .ts-control {
+    background: #fff;
+    border: 1px solid var(--kth-gray);
+    border-radius: 0;
+    box-shadow: none;
+    color: var(--kth-black);
+    font: inherit;
+    font-size: 14px;
+    min-height: 37px;
+}
+
+.ts-wrapper.bibmet-select.focus .ts-control {
+    outline: 2px solid var(--kth-lake);
+    outline-offset: 2px;
+}
+
+.ts-dropdown.bibmet-select {
+    border-color: var(--kth-gray);
+    border-radius: 0;
+    font: inherit;
+    z-index: 100;
 }
 
 .bibmet-button {
