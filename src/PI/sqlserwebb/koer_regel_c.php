@@ -38,58 +38,54 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
     $_SESSION['regel_id_ut'] = $regel_id;
 
-    $land = $_POST['Land_ut'];
-    $stad = $_POST['Stad_nu'];
-    $org = $_POST['Org_nu'];
+    $land = isset($_POST['Land_ut']) ? trim((string) $_POST['Land_ut']) : "";
+    $stad = isset($_POST['Stad_nu']) ? trim((string) $_POST['Stad_nu']) : "";
+    $org = isset($_POST['Org_nu']) ? trim((string) $_POST['Org_nu']) : "";
 
-    $username = $_SESSION['anv'];
-    $password = $_SESSION['ord'];
-    $hostname = $_SESSION['hnamn'];
-    $dbname = $_SESSION['dbnamn'];
+    $sql = "
+        SELECT
+            ua.Name_en AS Name,
+            ua.City AS City,
+            ua.Country_name AS Country_name,
+            ua.Org_type_code AS Org_type_code
+        FROM Unified_address ua
+        WHERE ua.Country_name = :land
+            AND UPPER(ua.Name_en) = UPPER(:org)
+    ";
 
-
-    $Sk = "'";
-    $Ers = "''";
-
-    $stad = str_replace($Sk, $Ers, $stad);
-    $org = str_replace($Sk, $Ers, $org);
-
-    $sqldel = "";
-
-	$sql = "SELECT o.Name,o.City,o.Country_name,o.Org_type_code FROM Organization o, Country c 
-	WHERE o.Country_code = c.Country_code AND c.Display_name = '" 
-	. $land . "' AND UPPER(o.Name) = UPPER('" . $org . "')"; 
-
-    if (strlen($stad) > 0)
-    {
-		$sqldel = " AND UPPER(City) = UPPER('" . $stad . "')";   
+    if (strlen($stad) > 0) {
+        $sql .= " AND UPPER(ua.City) = UPPER(:stad)";
     }
 
-    $sql .= $sqldel;
+    $stmt = $dbh->prepare($sql);
+    $stmt->bindValue(":land", $land, PDO::PARAM_STR);
+    $stmt->bindValue(":org", $org, PDO::PARAM_STR);
 
-	// Execute it, or let it throw an error message if there's a problem.
+    if (strlen($stad) > 0) {
+        $stmt->bindValue(":stad", $stad, PDO::PARAM_STR);
+    }
 
-	$stmt = $dbh->query( $sql );
-	
-	echo "<table border='1'>";
+    $stmt->execute();
+    
+    echo "<table border='1'>";
 
-	// Rubrikerna
-	echo "<tr>";
-	echo "<th>Organisation</th> <th>Stad</th> <th>Land</th> <th>Organisationstyp</th>";  
- 	echo "</tr>";
-		 
-	// Lägg ut resultatet
-	foreach ($stmt as $row) {
-			echo "<tr>";  
-			echo "<td>" . $row['Name'] . "</td>";
-			echo "<td>" . $row['City'] . "</td>";
-			echo "<td>" . $row['Country_name'] . "</td>";
-			echo "<td>" . $row['Org_type_code'] . "</td>";                                                                                  						
-			echo "</tr>";
-	}
+    // Rubrikerna
+    echo "<tr>";
+    echo "<th>Organisation</th> <th>Stad</th> <th>Land</th> <th>Organisationstyp</th>";
+     echo "</tr>";
+         
+    // Lägg ut resultatet
+    foreach ($stmt as $row) {
+            echo "<tr>";  
+            echo "<td>" . $row['Name'] . "</td>";
+            echo "<td>" . $row['City'] . "</td>";
+            echo "<td>" . $row['Country_name'] . "</td>";
+            echo "<td>" . $row['Org_type_code'] . "</td>";
+            echo "</tr>";
+    }
 
-	echo "</table>";
-	echo "<br /><br /><br />";
+    echo "</table>";
+    echo "<br /><br /><br />";
 
 ?>
 
