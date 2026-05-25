@@ -181,6 +181,10 @@
     padding: 20px;
 }
 
+.bibmet-form-grid--compact {
+    grid-template-columns: 1fr;
+}
+
 .bibmet-field {
     display: block;
 }
@@ -527,6 +531,10 @@ th.bibmet-table__actions {
         flex-direction: row;
     }
 
+    .bibmet-form-grid--compact {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .bibmet-pagination {
         justify-content: space-between;
     }
@@ -550,6 +558,10 @@ th.bibmet-table__actions {
         align-items: flex-end;
         flex-direction: row;
         justify-content: space-between;
+    }
+
+    .bibmet-form-grid--compact {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
 }

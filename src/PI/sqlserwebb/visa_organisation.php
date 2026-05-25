@@ -25,19 +25,33 @@ function build_page_url($page)
     return $_SERVER["PHP_SELF"] . "?" . http_build_query($params);
 }
 
-function bind_search_param($stmt, $key, $value)
+function selected_attr($optionValue, $currentValue)
 {
-    $stmt->bindValue($key, "%" . $value . "%", PDO::PARAM_STR);
+    return (string) $optionValue === (string) $currentValue ? ' selected' : '';
 }
 
-$hasRequestFilters = isset($_REQUEST['Land'])
+if (isset($_GET['clear'])) {
+    unset(
+        $_SESSION['land'],
+        $_SESSION['lokaltnamn'],
+        $_SESSION['engelsktnamn'],
+        $_SESSION['orgtyp'],
+        $_SESSION['orgid'],
+        $_SESSION['RORid'],
+        $_SESSION['Kommentar'],
+        $_SESSION['orgtyp_till'],
+        $_SESSION['exaktkoll']
+    );
+}
+
+$hasRequestFilters = !isset($_GET['clear']) && (isset($_REQUEST['Land'])
     || isset($_REQUEST['Lokaltnamn'])
     || isset($_REQUEST['Engelsktnamn'])
     || isset($_REQUEST['Orgtyp'])
     || isset($_REQUEST['Orgid'])
     || isset($_REQUEST['RORid'])
     || isset($_REQUEST['Kommentar'])
-    || isset($_REQUEST['Orgtyp_till']);
+    || isset($_REQUEST['Orgtyp_till']));
 
 if ($hasRequestFilters) {
     $land = request_value('Land');
@@ -81,6 +95,18 @@ $totalPages = 1;
 $whereParts = [];
 $params = [];
 $filters = [];
+$countries = [];
+$organizationTypes = [];
+
+try {
+    $stmt = $dbh->query("SELECT Display_name FROM Country ORDER BY Display_name");
+    $countries = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $stmt = $dbh->query("SELECT Org_type_eng FROM Organization_type ORDER BY Org_type_eng");
+    $organizationTypes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $e) {
+    $errors[] = "Det gick inte att hämta söklistorna. " . $e->getMessage();
+}
 
 if ($orgid !== "") {
     if (ctype_digit($orgid)) {
@@ -224,7 +250,10 @@ $columns = [
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Visa organisationsnamn</title>
     <link href="Site.css" rel="stylesheet">
+    <link href="vendor/tom-select/tom-select.css" rel="stylesheet">
     <?php include("include_bibmet_kth.html"); ?>
+    <script src="vendor/tom-select/tom-select.complete.min.js"></script>
+    <script src="bibmet-selects.js"></script>
 </head>
 
 <body class="bibmet-body">
@@ -244,9 +273,79 @@ $columns = [
                         <?php endif; ?>
                     </p>
                 </div>
-                <a href="organisationsnamn.php" class="bibmet-button bibmet-button--primary">Till sökning</a>
+                <div class="bibmet-action-group">
+                    <a href="ny_organisation.php" class="bibmet-button bibmet-button--primary">Ny organisation</a>
+                    <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
+                </div>
             </div>
         </section>
+
+        <form action="visa_organisation.php" method="post">
+            <section class="bibmet-panel">
+                <div class="bibmet-panel__header">
+                    <h2 class="bibmet-panel__title">Sökurval</h2>
+                </div>
+
+                <div class="bibmet-form-grid bibmet-form-grid--compact">
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Orgid</span>
+                        <input class="bibmet-input bibmet-input--short" type="text" name="Orgid" value="<?php echo h($orgid); ?>">
+                    </label>
+
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Land</span>
+                        <select class="bibmet-select js-bibmet-select" name="Land">
+                            <option value="">Ange land</option>
+                            <?php foreach ($countries as $country) : ?>
+                                <option value="<?php echo h($country); ?>"<?php echo selected_attr($country, $land); ?>><?php echo h($country); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Lokalt namn</span>
+                        <input class="bibmet-input" type="text" name="Lokaltnamn" value="<?php echo h($lok_namn); ?>">
+                    </label>
+
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Engelskt namn</span>
+                        <input class="bibmet-input" type="text" name="Engelsktnamn" value="<?php echo h($eng_namn); ?>">
+                    </label>
+
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">ROR-id</span>
+                        <input class="bibmet-input" type="text" name="RORid" value="<?php echo h($rorid); ?>">
+                    </label>
+
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Organisationstyp</span>
+                        <select class="bibmet-select js-bibmet-select" name="Orgtyp_till">
+                            <option value="">Ange organisationstyp</option>
+                            <?php foreach ($organizationTypes as $organizationType) : ?>
+                                <option value="<?php echo h($organizationType); ?>"<?php echo selected_attr($organizationType, $orgtyp_till); ?>><?php echo h($organizationType); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
+
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Kommentar</span>
+                        <input class="bibmet-input" type="text" name="Kommentar" value="<?php echo h($kommentar); ?>">
+                    </label>
+
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Exakt namnsökning</span>
+                        <input type="checkbox" name="exaktkoll" value="checkbox_value"<?php echo $exaktkoll ? ' checked' : ''; ?>>
+                    </label>
+                </div>
+
+                <div class="bibmet-form-actions">
+                    <div class="bibmet-action-group">
+                        <input class="bibmet-button bibmet-button--primary" type="submit" name="soek" value="Sök organisation">
+                        <a class="bibmet-button bibmet-button--secondary" href="visa_organisation.php?clear=1">Rensa sökning</a>
+                    </div>
+                </div>
+            </section>
+        </form>
 
         <?php if ($errors) : ?>
             <div class="bibmet-alert" role="alert">
