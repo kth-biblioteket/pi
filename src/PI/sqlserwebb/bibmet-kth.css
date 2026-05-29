@@ -245,20 +245,18 @@
 }
 
 .bibmet-form-grid .bibmet-input,
-.bibmet-form-grid .bibmet-select {
+.bibmet-form-grid .bibmet-select,
+.bibmet-form-grid .ts-wrapper.bibmet-select {
+    box-sizing: border-box;
     max-width: 560px;
+    width: 100%;
 }
 
 .bibmet-input--short {
     max-width: 320px;
 }
 
-.bibmet-select {
-    max-width: 448px;
-}
-
 .ts-wrapper.bibmet-select {
-    max-width: 448px;
     padding: 0;
     width: 100%;
 }
