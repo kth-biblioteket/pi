@@ -185,6 +185,10 @@
     grid-template-columns: 1fr;
 }
 
+.bibmet-form-grid--narrow {
+    max-width: 520px;
+}
+
 .bibmet-field {
     display: block;
 }
@@ -208,6 +212,25 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+.bibmet-choice-field {
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.bibmet-choice-list {
+    display: grid;
+    gap: 8px;
+}
+
+.bibmet-choice {
+    align-items: center;
+    color: var(--kth-black);
+    display: flex;
+    font-size: 14px;
+    gap: 8px;
 }
 
 .bibmet-input,

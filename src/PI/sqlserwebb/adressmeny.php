@@ -105,6 +105,13 @@ bibmet_require_login();
                     </a>
 
                     <a
+                        href="regel_ej_traeff.php"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Regler utan träff</span>
+                        <span class="bibmet-menu-card__text">Lista regler utan träff per land och regeltyp.</span>
+                    </a>
+
+                    <a
                         href="https://bibliometrics.lib.kth.se/checks-bibliometrics.html"
                         class="bibmet-menu-card">
                         <span class="bibmet-menu-card__title">Kontroller för bibliometridata</span>
