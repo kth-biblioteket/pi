@@ -7,5 +7,8 @@
             <span class="bibmet-header__area">Adressrättning</span>
         </span>
     </a>
+    <?php if (session_status() === PHP_SESSION_ACTIVE && isset($_SESSION['anv']) && isset($_SESSION['ord']) && $_SESSION['anv'] !== '' && $_SESSION['ord'] !== '') : ?>
+        <a class="bibmet-header__logout" href="logout.php">Logga ut</a>
+    <?php endif; ?>
 </header>
 <script src="session-guard.js"></script>
