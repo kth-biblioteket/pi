@@ -35,6 +35,24 @@
     padding: 12px 24px;
 }
 
+.bibmet-header__home {
+    align-items: center;
+    color: inherit;
+    display: flex;
+    gap: 16px;
+    text-decoration: none;
+}
+
+.bibmet-header__home:focus,
+.bibmet-header__home:hover {
+    text-decoration: none;
+}
+
+.bibmet-header__home:focus-visible {
+    outline: 2px solid var(--kth-white);
+    outline-offset: 4px;
+}
+
 .bibmet-header__logo {
     background: var(--kth-white);
     display: block;
