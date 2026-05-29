@@ -60,6 +60,93 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     $errors = [];
     $messages = [];
 
+    function parse_org_label($label)
+    {
+        $label = trim((string) $label);
+        $start = strrpos($label, '[');
+        $end = strrpos($label, ']');
+
+        if ($start === false || $end === false || $end <= $start) {
+            return [$label, ""];
+        }
+
+        return [trim(substr($label, 0, $start)), trim(substr($label, $start + 1, $end - $start - 1))];
+    }
+
+    function find_org_id(PDO $dbh, $label)
+    {
+        [$name, $country] = parse_org_label($label);
+
+        if ($name === "" || $label === "Ange organisation") {
+            return null;
+        }
+
+        if ($country !== "") {
+            $stmt = $dbh->prepare("SELECT Unified_org_id FROM Unified_org_names WHERE TRIM(Name_en) = TRIM(:name) AND Country_name = :country");
+            $stmt->bindValue(':country', $country, PDO::PARAM_STR);
+        } else {
+            $stmt = $dbh->prepare("SELECT Unified_org_id FROM Unified_org_names WHERE TRIM(Name_en) = TRIM(:name)");
+        }
+
+        $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+        $stmt->execute();
+        $orgId = $stmt->fetchColumn();
+
+        return $orgId === false ? null : (int) $orgId;
+    }
+
+    function normalize_optional_value($value, $placeholder)
+    {
+        $value = trim((string) $value);
+        return $value === "" || $value === $placeholder ? null : $value;
+    }
+
+    function bind_nullable(PDOStatement $stmt, $name, $value, $type = PDO::PARAM_STR)
+    {
+        if ($value === null || $value === "") {
+            $stmt->bindValue($name, null, PDO::PARAM_NULL);
+        } else {
+            $stmt->bindValue($name, $value, $type);
+        }
+    }
+
+    function insert_org_rule(PDO $dbh, array $data)
+    {
+        $sql = "INSERT INTO Rule_org_match (
+            Find_country, Country_code, Find_city, Find_org, Divide,
+            Country_1, City_1, Org_id_1,
+            Country_2, City_2, Org_id_2,
+            Country_3, City_3, Org_id_3,
+            User_id, Rule_date, Run_status, Valid_from, Valid_to
+        ) VALUES (
+            :Find_country, :Country_code, :Find_city, :Find_org, :Divide,
+            :Country_1, :City_1, :Org_id_1,
+            :Country_2, :City_2, :Org_id_2,
+            :Country_3, :City_3, :Org_id_3,
+            :User_id, CURRENT_TIMESTAMP, 1, :Valid_from, :Valid_to
+        )";
+
+        $stmt = $dbh->prepare($sql);
+        $stmt->bindValue(':Find_country', $data['Find_country'], PDO::PARAM_STR);
+        $stmt->bindValue(':Country_code', $data['Country_code'], PDO::PARAM_STR);
+        bind_nullable($stmt, ':Find_city', $data['Find_city']);
+        $stmt->bindValue(':Find_org', $data['Find_org'], PDO::PARAM_STR);
+        $stmt->bindValue(':Divide', (int) $data['Divide'], PDO::PARAM_INT);
+        bind_nullable($stmt, ':Country_1', $data['Country_1']);
+        bind_nullable($stmt, ':City_1', $data['City_1']);
+        bind_nullable($stmt, ':Org_id_1', $data['Org_id_1'], PDO::PARAM_INT);
+        bind_nullable($stmt, ':Country_2', $data['Country_2']);
+        bind_nullable($stmt, ':City_2', $data['City_2']);
+        bind_nullable($stmt, ':Org_id_2', $data['Org_id_2'], PDO::PARAM_INT);
+        bind_nullable($stmt, ':Country_3', $data['Country_3']);
+        bind_nullable($stmt, ':City_3', $data['City_3']);
+        bind_nullable($stmt, ':Org_id_3', $data['Org_id_3'], PDO::PARAM_INT);
+        $stmt->bindValue(':User_id', $data['User_id'], PDO::PARAM_STR);
+        bind_nullable($stmt, ':Valid_from', $data['Valid_from']);
+        bind_nullable($stmt, ':Valid_to', $data['Valid_to']);
+        $stmt->execute();
+    }
+
     if (isset($_POST['spara'])) {
         $land_s = isset($_POST['Land']) ? trim((string) $_POST['Land']) : "Ange land";
         $stad_s = isset($_POST['Stad']) ? trim((string) $_POST['Stad']) : "";
@@ -89,341 +176,119 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
             $org_3 = "Ange organisation";
         }
 
-        $Sk = "'";
-        $Ers = "''";
-
-        $stad_s = str_replace($Sk, $Ers, $stad_s);
-        $org_s_1 = str_replace($Sk, $Ers, $org_s_1);
-        $org_s_2 = str_replace($Sk, $Ers, $org_s_2);
-        $org_s_3 = str_replace($Sk, $Ers, $org_s_3);
-        $stad_1 = str_replace($Sk, $Ers, $stad_1);
-        $stad_2 = str_replace($Sk, $Ers, $stad_2);
-        $stad_3 = str_replace($Sk, $Ers, $stad_3);
-        $org_1 = str_replace($Sk, $Ers, $org_1);
-        $org_2 = str_replace($Sk, $Ers, $org_2);
-        $org_3 = str_replace($Sk, $Ers, $org_3);
-        $land_s = str_replace($Sk, $Ers, $land_s);
-        $land_1 = str_replace($Sk, $Ers, $land_1);
-        $land_2 = str_replace($Sk, $Ers, $land_2);
-        $land_3 = str_replace($Sk, $Ers, $land_3);
-
-        $koll_svar = false;
-
-        // NYTT
-        if (strlen($fr) == 0) {
-               $sql_tid = "";
-               $sql_v_tid = "";
+        if ($land_s === 'Ange land' || $land_s === "") {
+            $errors[] = 'Land måste anges som sökfält.';
         }
-        else {
-               $sql_tid = ",Valid_from";
-               $sql_v_tid = "," . $fr;
-        }
-        if (strlen($ti) > 0) {
-               $sql_tid = $sql_tid . ",Valid_to";
-               $sql_v_tid = $sql_v_tid . "," . $ti;
-        }
-        // SLUTNYTT
 
-        if ($land_s == 'Ange land') {
-             $errors[] = 'Land måste anges som sökfält.';
+        if ($org_s_1 === "") {
+            $errors[] = 'Organisation måste anges som sökfält.';
         }
-        else {
-            if (strlen($org_s_1) == 0){
-                 $errors[] = 'Organisation måste anges som sökfält.';
-            }
-            else {
-                if ($org_1 == 'Ange organisation'){
-                     $errors[] = 'Organisation 1 måste anges som ändringsfält.';
-                }
-                else {
-                    if ($delas == 1) {
-                        if ($org_2 != 'Ange organisation' || $org_3 != 'Ange organisation') {
-                             $errors[] = 'Antalet i Delas stämmer inte med antal angivna organisationer.';
-                        }
-                        else {
-                            $koll_svar = true;
-                        }
-                    }
-                    else if ($delas == 2) {
-                        if ($org_2 == 'Ange organisation' || $org_3 != 'Ange organisation'){
-                             $errors[] = 'Antalet i Delas stämmer inte med antal angivna organisationer.';
-                        }
-                        else {
-                            $koll_svar = true;
-                        }
-                    }
-                    else if ($delas == 3) {
-                        if ($org_2 == 'Ange organisation' || $org_3 == 'Ange organisation'){
-                            $errors[] = 'Antalet i Delas stämmer inte med antal angivna organisationer.';
-                        }
-                        else {
-                            $koll_svar = true;
-                        }
-                    }
-                    else {
-                        $errors[] = 'Antalet i Delas kan vara mellan 1 och 3.';
-                    }
-                }
+
+        if (!in_array($delas, ['1', '2', '3'], true)) {
+            $errors[] = 'Antalet i Delas kan vara mellan 1 och 3.';
+        }
+
+        if ($org_1 === 'Ange organisation') {
+            $errors[] = 'Organisation 1 måste anges som ändringsfält.';
+        }
+
+        if ($delas === '1' && ($org_2 !== 'Ange organisation' || $org_3 !== 'Ange organisation')) {
+            $errors[] = 'Antalet i Delas stämmer inte med antal angivna organisationer.';
+        }
+        if ($delas === '2' && ($org_2 === 'Ange organisation' || $org_3 !== 'Ange organisation')) {
+            $errors[] = 'Antalet i Delas stämmer inte med antal angivna organisationer.';
+        }
+        if ($delas === '3' && ($org_2 === 'Ange organisation' || $org_3 === 'Ange organisation')) {
+            $errors[] = 'Antalet i Delas stämmer inte med antal angivna organisationer.';
+        }
+
+        foreach (['Gäller från' => $fr, 'Gäller till' => $ti] as $label => $dateValue) {
+            if ($dateValue !== "" && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateValue)) {
+                $errors[] = $label . ' måste anges som ÅÅÅÅ-MM-DD.';
             }
         }
 
         $n_regel_o = isset($_SESSION['n_regel_o']) ? $_SESSION['n_regel_o'] : "";
-        $regel_o_fingerprint = hash('sha256', json_encode(array(
-            $land_s,
-            $stad_s,
-            $org_s_1,
-            $org_s_2,
-            $org_s_3,
-            $delas,
-            $land_1,
-            $land_2,
-            $land_3,
-            $stad_1,
-            $stad_2,
-            $stad_3,
-            $org_1,
-            $org_2,
-            $org_3,
-            $fr,
-            $ti
-        ), JSON_UNESCAPED_UNICODE));
+        $regel_o_fingerprint = hash('sha256', json_encode([
+            $land_s, $stad_s, $org_s_1, $org_s_2, $org_s_3, $delas,
+            $land_1, $land_2, $land_3, $stad_1, $stad_2, $stad_3,
+            $org_1, $org_2, $org_3, $fr, $ti
+        ], JSON_UNESCAPED_UNICODE));
 
-        if ($koll_svar && $n_regel_o == $regel_o_fingerprint) {
+        if (!$errors && $n_regel_o === $regel_o_fingerprint) {
             $errors[] = 'Regeln har redan sparats. Ändra något fält innan du sparar igen.';
         }
 
-        if ($koll_svar && $n_regel_o <> $regel_o_fingerprint) {
-
-            $pos_f = strpos($org_1, '[' );
-            $pos_e = strpos($org_1, ']' );
-            $org_1_o = substr($org_1, 0, $pos_f - 1);
-            $org_1_c = substr($org_1, $pos_f + 1, $pos_e - $pos_f - 1);
-
-            if (strlen($org_1_c) > 0) {
-                $sql_org_1 = "SELECT Unified_org_id FROM Unified_org_names WHERE TRIM(Name_en) = TRIM('" . $org_1_o . "') AND Country_name = '" . $org_1_c . "'";
-            }
-            else {
-                $sql_org_1 = "SELECT Unified_org_id FROM Unified_org_names WHERE TRIM(Name_en) = TRIM('" . $org_1_o . "')";
-            }
-
-        $stmt = $dbh->query( $sql_org_1 );
-        foreach ($stmt as $row) {
-                $org_id_1 = $row['Unified_org_id'];
-        }
-
-            if ($land_1 == 'Ange land') {
-                $land_1 = NULL;
-            }
-
-            if ($delas > 1) {
-                if ($org_2 != 'Ange organisation') {
-
-                   $pos_f = strpos($org_2, '[' );
-                   $pos_e = strpos($org_2, ']' );
-                   $org_2_o = substr($org_2, 0, $pos_f - 1);
-                   $org_2_c = substr($org_2, $pos_f + 1, $pos_e - $pos_f - 1);
-
-                   if (strlen($org_2_c) > 0) {
-                      $sql_org_2 = "SELECT Unified_org_id FROM Unified_org_names WHERE TRIM(Name_en) = TRIM('" . $org_2_o . "') AND Country_name = '" . $org_2_c . "'";
-                   }
-                   else {
-                      $sql_org_2 = "SELECT Unified_org_id FROM Unified_org_names WHERE TRIM(Name_en) = TRIM('" . $org_2_o . "')";
-                   }
-
-                    $stmt = $dbh->query( $sql_org_2 );
-                    foreach ($stmt as $row) {
-                        $org_id_2 = $row['Unified_org_id'];
-                    }
-                }
-                else {
-                    $org_id_2 = NULL;
-                }
-
-                if ($land_2 == 'Ange land') {
-                    $land_2 = NULL;
-                }
-            }
-
-            if ($delas > 2) {
-                if ($org_3 != 'Ange organisation') {
-
-                   $pos_f = strpos($org_3, '[' );
-                   $pos_e = strpos($org_3, ']' );
-                   $org_3_o = substr($org_3, 0, $pos_f - 1);
-                   $org_3_c = substr($org_3, $pos_f + 1, $pos_e - $pos_f - 1);
-
-                   if (strlen($org_3_c) > 0) {
-                      $sql_org_3 = "SELECT Unified_org_id FROM Unified_org_names WHERE TRIM(Name_en) = TRIM('" . $org_3_o . "') AND Country_name = '" . $org_3_c . "'";
-                   }
-                   else {
-                      $sql_org_3 = "SELECT Unified_org_id FROM Unified_org_names WHERE TRIM(Name_en) = TRIM('" . $org_3_o . "')";
-                   }
-
-                    $stmt = $dbh->query( $sql_org_3 );
-                    foreach ($stmt as $row) {
-                        $org_id_3 = $row['Unified_org_id'];
-                    }
-                }
-                else {
-                    $org_id_3 = NULL;
-                }
-
-                if ($land_3 == 'Ange land') {
-                    $land_3 = NULL;
-                }
-            }
-
-            $sql_country = "SELECT Country_code FROM Country WHERE Display_name = '" . $land_s . "'";
-            $stmt = $dbh->query( $sql_country );
-            foreach ($stmt as $row) {
-                $country_code = $row['Country_code'];
-            }
-
-            if (strlen($stad_s) == 0) {
-               $sql_stad_s = "";
-               $sql_v_stad_s = "";
-            }
-            else {
-               $sql_stad_s = "Find_city,";
-               $sql_v_stad_s = $stad_s . "','";
-            }
-
-            $regel_sparad = false;
-            $regel_2_sparad = false;
-            $regel_3_sparad = false;
-
+        if (!$errors) {
             try {
-                $dbh->beginTransaction();
+                $countryStmt = $dbh->prepare("SELECT Country_code FROM Country WHERE Display_name = :land");
+                $countryStmt->bindValue(':land', $land_s, PDO::PARAM_STR);
+                $countryStmt->execute();
+                $country_code = $countryStmt->fetchColumn();
 
-            if ($delas == 1) {
-                $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
-                . $sql_stad_s
-                . "Find_org,Divide,Country_1,City_1,Org_id_1,User_id,Rule_date,Run_status" . $sql_tid . ") VALUES ('" . $land_s . "','" . $country_code . "','"
-                . $sql_v_stad_s
-                . $org_s_1 . "'," . $delas . ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $username . "',GETDATE(),1" . $sql_v_tid . ")";
-            }
-            else if ($delas == 2) {
-                $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
-                . $sql_stad_s
-                . "Find_org,Divide,Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,User_id,Rule_date,Run_status" . $sql_tid . ") VALUES ('" . $land_s . "','" . $country_code . "','"
-                . $sql_v_stad_s
-                . $org_s_1 . "'," . $delas . ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 .
-                "'," . $org_id_2 . ",'" . $username . "',GETDATE(),1" . $sql_v_tid . ")";
-            }
-            else {
-                $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
-                . $sql_stad_s
-                . "Find_org,Divide,Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,Country_3,City_3,Org_id_3,User_id,
-                Rule_date,Run_status" . $sql_tid . ") VALUES
-                ('" . $land_s . "','" . $country_code . "','"
-                . $sql_v_stad_s
-                . $org_s_1 . "'," . $delas .
-                ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 .
-                "'," . $org_id_2 . ",'" . $land_3 . "','" . $stad_3 . "'," . $org_id_3 . ",'" .
-                $username . "',GETDATE(),1" . $sql_v_tid . ")";
-            }
-            $stmt = $dbh->query( $sql_i );
-                $regel_sparad = true;
-
-            if (strlen($org_s_2) > 0) {
-
-                if ($delas == 1) {
-                    $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
-                    . $sql_stad_s
-                    . "Find_org,Divide,Country_1,City_1,Org_id_1,User_id,Rule_date,Run_status" . $sql_tid . ") VALUES ('" . $land_s . "','" . $country_code . "','"
-                    . $sql_v_stad_s
-                    . $org_s_2 . "'," . $delas . ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $username . "',GETDATE(),1" . $sql_v_tid . ")";
-                }
-                else if ($delas == 2) {
-                    $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
-                    . $sql_stad_s
-                    . "Find_org,Divide,Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,User_id,Rule_date,Run_status" . $sql_tid . ") VALUES ('" . $land_s . "','" . $country_code . "','"
-                    . $sql_v_stad_s
-                    . $org_s_2 . "'," . $delas . ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 .
-                    "'," . $org_id_2 . ",'" . $username . "',GETDATE(),1" . $sql_v_tid . ")";
-                }
-                else {
-                    $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
-                    . $sql_stad_s
-                    . "Find_org,Divide,Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,Country_3,City_3,Org_id_3,User_id,
-                    Rule_date,Run_status" . $sql_tid . ") VALUES
-                    ('" . $land_s . "','" . $country_code . "','"
-                    . $sql_v_stad_s
-                    . $org_s_2 . "'," . $delas .
-                    ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 .
-                    "'," . $org_id_2 . ",'" . $land_3 . "','" . $stad_3 . "'," . $org_id_3 . ",'" .
-                    $username . "',GETDATE(),1" . $sql_v_tid . ")";
+                if ($country_code === false) {
+                    $errors[] = 'Ogiltigt land.';
                 }
 
-                $stmt = $dbh->query( $sql_i );
-                    $regel_2_sparad = true;
-            }
+                $org_id_1 = find_org_id($dbh, $org_1);
+                $org_id_2 = $delas > 1 ? find_org_id($dbh, $org_2) : null;
+                $org_id_3 = $delas > 2 ? find_org_id($dbh, $org_3) : null;
 
-            if (strlen($org_s_3) > 0) {
-
-                if ($delas == 1) {
-                    $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
-                    . $sql_stad_s
-                    . "Find_org,Divide,Country_1,City_1,Org_id_1,User_id,Rule_date,Run_status" . $sql_tid . ") VALUES ('" . $land_s . "','" . $country_code . "','"
-                    . $sql_v_stad_s
-                    . $org_s_3 . "'," . $delas . ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $username . "',GETDATE(),1" . $sql_v_tid . ")";
-                }
-                else if ($delas == 2) {
-                    $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
-                    . $sql_stad_s
-                    . "Find_org,Divide,Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,User_id,Rule_date,Run_status" . $sql_tid . ") VALUES ('" . $land_s . "','" . $country_code . "','"
-                    . $sql_v_stad_s
-                    . $org_s_3 . "'," . $delas . ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 .
-                    "'," . $org_id_2 . ",'" . $username . "',GETDATE(),1" . $sql_v_tid . ")";
-                }
-                else {
-                    $sql_i = "INSERT INTO Rule_org_match (Find_country,Country_code,"
-                    . $sql_stad_s
-                    . "Find_org,Divide,Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,Country_3,City_3,Org_id_3,User_id,
-                    Rule_date,Run_status" . $sql_tid . ") VALUES
-                    ('" . $land_s . "','" . $country_code . "','"
-                    . $sql_v_stad_s
-                    . $org_s_3 . "'," . $delas .
-                    ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 .
-                    "'," . $org_id_2 . ",'" . $land_3 . "','" . $stad_3 . "'," . $org_id_3 . ",'" .
-                    $username . "',GETDATE(),1" . $sql_v_tid . ")";
+                if ($org_id_1 === null || ($delas > 1 && $org_id_2 === null) || ($delas > 2 && $org_id_3 === null)) {
+                    $errors[] = 'En eller flera valda organisationer kunde inte hittas.';
                 }
 
-                $stmt = $dbh->query( $sql_i );
-                    $regel_3_sparad = true;
-            }
+                if (!$errors) {
+                    $searchOrgs = array_values(array_filter([$org_s_1, $org_s_2, $org_s_3], function ($value) {
+                        return trim((string) $value) !== '';
+                    }));
 
+                    $ruleData = [
+                        'Find_country' => $land_s,
+                        'Country_code' => $country_code,
+                        'Find_city' => $stad_s,
+                        'Divide' => (int) $delas,
+                        'Country_1' => normalize_optional_value($land_1, 'Ange land'),
+                        'City_1' => $stad_1,
+                        'Org_id_1' => $org_id_1,
+                        'Country_2' => $delas > 1 ? normalize_optional_value($land_2, 'Ange land') : null,
+                        'City_2' => $delas > 1 ? $stad_2 : null,
+                        'Org_id_2' => $delas > 1 ? $org_id_2 : null,
+                        'Country_3' => $delas > 2 ? normalize_optional_value($land_3, 'Ange land') : null,
+                        'City_3' => $delas > 2 ? $stad_3 : null,
+                        'Org_id_3' => $delas > 2 ? $org_id_3 : null,
+                        'User_id' => $username,
+                        'Valid_from' => $fr,
+                        'Valid_to' => $ti,
+                    ];
 
-                $dbh->commit();
+                    $dbh->beginTransaction();
+                    foreach ($searchOrgs as $searchOrg) {
+                        $ruleData['Find_org'] = $searchOrg;
+                        insert_org_rule($dbh, $ruleData);
+                    }
+                    $dbh->commit();
 
-            } catch (Exception $e) {
+                    $_SESSION['n_regel_o'] = $regel_o_fingerprint;
+                    $messages[] = 'Regeln är sparad.';
+
+                    $stad_s = "";
+                    $org_s_1 = "";
+                    $org_s_2 = "";
+                    $org_s_3 = "";
+                    $stad_1 = "";
+                    $stad_2 = "";
+                    $stad_3 = "";
+                    $fr = "";
+                    $ti = "";
+                }
+            } catch (PDOException $e) {
                 if ($dbh->inTransaction()) {
                     $dbh->rollBack();
                 }
-                $regel_sparad = false;
-                $regel_2_sparad = false;
-                $regel_3_sparad = false;
-                $errors[] = 'Fel vid sparande av regeln.';
+                $errors[] = 'Fel vid sparande av regeln. ' . $e->getMessage();
             }
-
-            if ($regel_sparad) {
-                $_SESSION['n_regel_o'] = $regel_o_fingerprint;
-                $messages[] = 'Regeln är sparad.';
-            }
-
-            // Blanka sparad regels textfält
-            $stad_s = "";
-            $org_s_1 = "";
-            $org_s_2 = "";
-            $org_s_3 = "";
-            $stad_1 = "";
-            $stad_2 = "";
-            $stad_3 = "";
-            $fr = "";
-            $ti = "";
-
         }
-
     }
 
     $countries = [];
