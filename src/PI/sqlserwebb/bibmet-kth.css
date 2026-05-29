@@ -315,6 +315,15 @@
     width: 100%;
 }
 
+.bibmet-input:disabled,
+.bibmet-select:disabled {
+    background: #f2f0ed;
+    border-color: #b7b1aa;
+    color: #5f5b57;
+    cursor: not-allowed;
+    opacity: 1;
+}
+
 .bibmet-form-grid .bibmet-input,
 .bibmet-form-grid .bibmet-select,
 .bibmet-form-grid .ts-wrapper.bibmet-select {
