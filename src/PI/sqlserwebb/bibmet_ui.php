@@ -22,7 +22,10 @@ function bibmet_selected_attr($optionValue, $currentValue)
 function bibmet_page_url($page, array $extraParams = [])
 {
     $params = $_REQUEST;
-    unset($params["clear"]);
+    unset($params["clear"], $params["PHPSESSID"]);
+    if (function_exists('session_name')) {
+        unset($params[session_name()]);
+    }
     $params = array_merge($params, $extraParams);
     $params["page"] = $page;
 
@@ -36,7 +39,7 @@ function bibmet_bind_all(PDOStatement $stmt, array $params)
     }
 }
 
-function bibmet_render_pagination($page, $totalPages)
+function bibmet_render_pagination($page, $totalPages, array $extraParams = [])
 {
     if ($totalPages <= 1) {
         return;
@@ -45,7 +48,7 @@ function bibmet_render_pagination($page, $totalPages)
     ?>
     <nav class="bibmet-pagination" aria-label="Sidnavigering">
         <a
-            href="<?php echo bibmet_h(bibmet_page_url(max(1, $page - 1))); ?>"
+            href="<?php echo bibmet_h(bibmet_page_url(max(1, $page - 1), $extraParams)); ?>"
             class="<?php echo $page <= 1 ? "bibmet-disabled " : ""; ?>bibmet-button bibmet-button--secondary"
             aria-disabled="<?php echo $page <= 1 ? "true" : "false"; ?>">
             Föregående
@@ -59,7 +62,7 @@ function bibmet_render_pagination($page, $totalPages)
                 $isCurrent = $i === $page;
             ?>
                 <a
-                    href="<?php echo bibmet_h(bibmet_page_url($i)); ?>"
+                    href="<?php echo bibmet_h(bibmet_page_url($i, $extraParams)); ?>"
                     class="bibmet-page-link<?php echo $isCurrent ? " bibmet-page-link--current" : ""; ?>"
                     aria-current="<?php echo $isCurrent ? "page" : "false"; ?>">
                     <?php echo bibmet_h($i); ?>
@@ -68,7 +71,7 @@ function bibmet_render_pagination($page, $totalPages)
         </div>
 
         <a
-            href="<?php echo bibmet_h(bibmet_page_url(min($totalPages, $page + 1))); ?>"
+            href="<?php echo bibmet_h(bibmet_page_url(min($totalPages, $page + 1), $extraParams)); ?>"
             class="<?php echo $page >= $totalPages ? "bibmet-disabled " : ""; ?>bibmet-button bibmet-button--primary"
             aria-disabled="<?php echo $page >= $totalPages ? "true" : "false"; ?>">
             Nästa

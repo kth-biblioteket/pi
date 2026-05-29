@@ -300,7 +300,7 @@ $lastRow = min($offset + $pageSize, $totalRows);
                 </table>
             </div>
 
-            <?php bibmet_render_pagination($page, $totalPages); ?>
+            <?php bibmet_render_pagination($page, $totalPages, ["Unified_org_id" => $u_org_id]); ?>
         </section>
     </main>
 </body>
