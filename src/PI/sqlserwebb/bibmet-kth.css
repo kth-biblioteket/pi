@@ -193,6 +193,43 @@
     margin-top: 4px;
 }
 
+.bibmet-disclosure {
+    display: block;
+}
+
+.bibmet-disclosure__summary {
+    align-items: center;
+    cursor: pointer;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    list-style: none;
+    padding: 16px 20px;
+}
+
+.bibmet-disclosure__summary::-webkit-details-marker {
+    display: none;
+}
+
+.bibmet-disclosure__summary::after {
+    color: var(--kth-blue);
+    content: "−";
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.bibmet-disclosure:not([open]) .bibmet-disclosure__summary::after {
+    content: "+";
+}
+
+.bibmet-disclosure__hint {
+    color: var(--kth-gray);
+    font-size: 13px;
+    font-weight: 600;
+    margin-left: auto;
+}
+
 .bibmet-form-grid {
     display: grid;
     gap: 20px;

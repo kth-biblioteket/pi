@@ -253,12 +253,14 @@ $columns = [
         </section>
 
         <form action="organisationsnamn.php" method="get">
-            <section class="bibmet-panel">
-                <div class="bibmet-panel__header">
-                    <h2 class="bibmet-panel__title">Sökurval</h2>
-                </div>
+            <section class="bibmet-panel bibmet-panel--collapsible">
+                <details class="bibmet-disclosure" open>
+                    <summary class="bibmet-disclosure__summary">
+                        <span class="bibmet-panel__title">Sökurval</span>
+                        <span class="bibmet-disclosure__hint">Visa/dölj sökfilter</span>
+                    </summary>
 
-                <div class="bibmet-form-grid bibmet-form-grid--compact">
+                    <div class="bibmet-form-grid bibmet-form-grid--compact">
                     <label class="bibmet-field">
                         <span class="bibmet-field__label">Orgid</span>
                         <input class="bibmet-input bibmet-input--short" type="text" name="Orgid" value="<?php echo bibmet_h($orgid); ?>">
@@ -310,12 +312,13 @@ $columns = [
                     </label>
                 </div>
 
-                <div class="bibmet-form-actions">
-                    <div class="bibmet-action-group">
-                        <input class="bibmet-button bibmet-button--primary" type="submit" name="soek" value="Sök organisation">
-                        <a class="bibmet-button bibmet-button--secondary" href="organisationsnamn.php?clear=1">Rensa sökning</a>
+                    <div class="bibmet-form-actions">
+                        <div class="bibmet-action-group">
+                            <input class="bibmet-button bibmet-button--primary" type="submit" name="soek" value="Sök organisation">
+                            <a class="bibmet-button bibmet-button--secondary" href="organisationsnamn.php?clear=1">Rensa sökning</a>
+                        </div>
                     </div>
-                </div>
+                </details>
             </section>
         </form>
 
