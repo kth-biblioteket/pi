@@ -257,7 +257,7 @@ $columns = [
                                             <?php endforeach; ?>
                                             <td>
                                                 <a
-                                                    href="aendra_regel_o_typ_xxx.php?Regel_id=<?php echo bibmet_h($row["R_o_t_m_id"]); ?>"
+                                                    href="traeff_regler_o_typ.php?Regel_id=<?php echo bibmet_h($row["R_o_t_m_id"]); ?>"
                                                     class="bibmet-button bibmet-button--secondary bibmet-button--small">
                                                     Testa
                                                 </a>
