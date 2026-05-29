@@ -16,9 +16,9 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     <meta charset="utf-8">
 
     <title>TA BORT ORGANISATIONSNAMN</title>
-	
-    <link href="Site.css" rel="stylesheet"> 
-	
+
+    <link href="Site.css" rel="stylesheet">
+
 </head>
 
 <body>
@@ -26,7 +26,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 <?php include('include_head_new.html'); ?>
 
 <?php
-    
+
     $u_org_id = $_SESSION['u_org_id'];
 
     $username = $_SESSION['anv'];
@@ -36,8 +36,8 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
 
     $b_org_id = $_SESSION['b_org_id'];
-    
-    if ($b_org_id <> $u_org_id) {        
+
+    if ($b_org_id <> $u_org_id) {
 
         // Spara undan organisationen
 
@@ -59,52 +59,52 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
         $namn_eng = str_replace($Sk, $Ers, $nnamn_eng);
         $komm = str_replace($Sk, $Ers, $komm);
 
-        $sql_i = "INSERT INTO removed_un_org_names (Unified_org_id,Name_local,Name_en,Country_name,Org_type_code,Comment,User_id,Latest_date,Remove_user_id,Remove_date,Reason,ROR_id) 
-        VALUES (" . $unified_org_id . ",'" . $namn_lok . "','" . $namn_eng . "','" . $land . "','" . $orgtyp . "','" . $komm . "','" . $user_id . "','" . $latest_date . 
+        $sql_i = "INSERT INTO removed_un_org_names (Unified_org_id,Name_local,Name_en,Country_name,Org_type_code,Comment,User_id,Latest_date,Remove_user_id,Remove_date,Reason,ROR_id)
+        VALUES (" . $unified_org_id . ",'" . $namn_lok . "','" . $namn_eng . "','" . $land . "','" . $orgtyp . "','" . $komm . "','" . $user_id . "','" . $latest_date .
         "','" . $username . "',GETDATE(),'" . $orsak . "','" . $rorid . "')";
 
         $stmt = $dbh->query( $sql_i );
 
         // Ta bort regeln
 
-	    $sql_d = "DELETE FROM unified_org_names WHERE Unified_org_id = " . $u_org_id;
+        $sql_d = "DELETE FROM unified_org_names WHERE Unified_org_id = " . $u_org_id;
 
         $stmt = $dbh->query( $sql_d );
-             
+
         if ($count = $stmt->rowCount() > 0) {
             echo '<script language="javascript">';
             echo 'alert("Organisationen är borttagen!")';
-            echo '</script>'; 
-            $_SESSION['b_org_id'] = $u_org_id;           
+            echo '</script>';
+            $_SESSION['b_org_id'] = $u_org_id;
         }
         else {
             echo '<script language="javascript">';
             echo 'alert("Fel vid borttagande av organisationen!")';
-            echo '</script>';            
+            echo '</script>';
         }
     }
 
 ?>
 
-<h2>TA BORT ORGANISATIONSNAMN</h2>	
-	                                    
-		    <form action="ta_bort_organisation_resultat.php" method="post">
+<h2>TA BORT ORGANISATIONSNAMN</h2>
+
+            <form action="ta_bort_organisation_resultat.php" method="post">
 
                 <input type="submit" name="radera" value="Radera organisation" disabled />&nbsp;&nbsp;
                 <a href='organisationsnamn.php'>TILL SÖKNING</a>&nbsp;&nbsp;
                 <a href='adressmeny.php'>TILL MENYN</a>
                 <br /><br />
 
-			    Orgid:</br> 
-				<input type="text" name="Orgid" disabled />&nbsp;&nbsp; 
+                Orgid:</br>
+                <input type="text" name="Orgid" disabled />&nbsp;&nbsp;
                 <br />
 
-			    Lokalt namn:</br> 
-				<input type="text" name="Namn_lok_ut" disabled />&nbsp;&nbsp; 
+                Lokalt namn:</br>
+                <input type="text" name="Namn_lok_ut" disabled />&nbsp;&nbsp;
                 <br />
 
-			    Engelskt namn:</br> 
-				<input type="text" name="Namn_eng_ut" disabled />&nbsp;&nbsp; 
+                Engelskt namn:</br>
+                <input type="text" name="Namn_eng_ut" disabled />&nbsp;&nbsp;
                 <br />
 
                 Land:</br>
@@ -115,15 +115,15 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
                 <input type="text" name="Orgtyp_ut" disabled />&nbsp;&nbsp;
                 <br />
 
-			    Kommentar:</br> 
-				<input type="text" name="Komm_ut" disabled />&nbsp;&nbsp; 
+                Kommentar:</br>
+                <input type="text" name="Komm_ut" disabled />&nbsp;&nbsp;
                 <br />
-			
-			    ROR-id:</br> 
-				<input type="text" name="RORid" disabled />&nbsp;&nbsp; 
+
+                ROR-id:</br>
+                <input type="text" name="RORid" disabled />&nbsp;&nbsp;
                 <br />
-	
-		    </form>
-								
-	</body>
+
+            </form>
+
+    </body>
 </html>

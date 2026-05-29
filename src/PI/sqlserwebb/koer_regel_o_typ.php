@@ -67,7 +67,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     }
 
     $stmt->execute();
-    
+
     echo "<table border='1'>";
 
     // Rubrikerna
@@ -77,7 +77,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
     // Lägg ut resultatet
     foreach ($stmt as $row) {
-            echo "<tr>";  
+            echo "<tr>";
             echo "<td>" . $row['Name'] . "</td>";
             echo "<td>" . $row['City'] . "</td>";
             echo "<td>" . $row['Country_name'] . "</td>";

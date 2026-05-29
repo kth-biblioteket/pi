@@ -16,9 +16,9 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     <meta charset="utf-8">
 
     <title>NY REGEL ORGANISATIONSTYP</title>
-	
-    <link href="Site.css" rel="stylesheet"> 
-		
+
+    <link href="Site.css" rel="stylesheet">
+
 <script type="text/javascript">
 
     function f_populera_Land() {
@@ -162,8 +162,8 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
         f_populera_Land();
     }
 
-</script>	
-	
+</script>
+
 </head>
 
 <body onload="f_Ladda_sida()">
@@ -171,7 +171,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 <?php include('include_head_new.html'); ?>
 
 <?php
-    
+
     $username = $_SESSION['anv'];
     $password = $_SESSION['ord'];
     $hostname = $_SESSION['hnamn'];
@@ -208,31 +208,31 @@ if (isset($_POST['spara'])) {
         $stad_1 = $_POST['Stad_1'];
         $orgtyp = $_POST['Orgtyp'];
 
-	$Sk = "'";
-	$Ers = "''";
+    $Sk = "'";
+    $Ers = "''";
 
-	$stad_s = str_replace($Sk, $Ers, $stad_s);
-	$org_s_1 = str_replace($Sk, $Ers, $org_s_1);
-	$org_s_2 = str_replace($Sk, $Ers, $org_s_2);
-	$org_s_ej = str_replace($Sk, $Ers, $org_s_ej);
-	$stad_1 = str_replace($Sk, $Ers, $stad_1);
-	$land_s = str_replace($Sk, $Ers, $land_s);
-	$land_1 = str_replace($Sk, $Ers, $land_1);
+    $stad_s = str_replace($Sk, $Ers, $stad_s);
+    $org_s_1 = str_replace($Sk, $Ers, $org_s_1);
+    $org_s_2 = str_replace($Sk, $Ers, $org_s_2);
+    $org_s_ej = str_replace($Sk, $Ers, $org_s_ej);
+    $stad_1 = str_replace($Sk, $Ers, $stad_1);
+    $land_s = str_replace($Sk, $Ers, $land_s);
+    $land_1 = str_replace($Sk, $Ers, $land_1);
 
     $koll_svar = false;
-        
+
     if (strlen($org_s_1) == 0) {
         echo "<script>alert('Organisation, sträng 1 måste anges som sökfält!');</script>";
     }
     else {
          if ($orgtyp == 'Ange organisationstyp') {
-             echo "<script>alert('Organisationstyp måste anges som ändringsfält!');</script>";                    
+             echo "<script>alert('Organisationstyp måste anges som ändringsfält!');</script>";
          }
          else {
              $koll_svar = true;
-         }                
+         }
     }
-       
+
     $n_regel_o_typ = $_SESSION['n_regel_o_typ'];
 
     if ($koll_svar && $n_regel_o_typ <> $org_s_1) {
@@ -242,16 +242,16 @@ if (isset($_POST['spara'])) {
        }
        else {
             $sql_country = "SELECT Country_code FROM Country WHERE Display_name = '" . $land_s . "'";
-	        $stmt = $dbh->query( $sql_country );
-	        foreach ($stmt as $row) {
-                $country_code = $row['Country_code'];      
-	        }            
+            $stmt = $dbh->query( $sql_country );
+            foreach ($stmt as $row) {
+                $country_code = $row['Country_code'];
+            }
        }
-    
+
        $sql_o = "SELECT Org_type_code FROM organization_type WHERE Org_type_eng = '" . $orgtyp . "'";
        $stmt = $dbh->query( $sql_o );
        foreach ($stmt as $row) {
-          $org_type_code = $row['Org_type_code']; 
+          $org_type_code = $row['Org_type_code'];
        }
 
        $foere = 0;
@@ -322,18 +322,18 @@ if (isset($_POST['spara'])) {
        }
 
        if ($foere == 0) {
-       	  $sql_i = "INSERT INTO Rule_org_type_match (" . $sql_land_s . $sql_country_code  
+             $sql_i = "INSERT INTO Rule_org_type_match (" . $sql_land_s . $sql_country_code
           . $sql_stad_s
           . "Find_org_1," . $sql_org_s_2 . $sql_org_s_ej . $sql_land_1 . $sql_stad_1 . "Org_type_code,User_id,Rule_date,Run_status) VALUES (" . $sql_v_land_s .  $sql_v_country_code
-          . $sql_v_stad_s 
-          . "'" . $org_s_1 . "','" . $sql_v_org_s_2 . $sql_v_org_s_ej . $sql_v_land_1 . $sql_v_stad_1 . $org_type_code . "','" . $username . "',GETDATE(),1)";  
+          . $sql_v_stad_s
+          . "'" . $org_s_1 . "','" . $sql_v_org_s_2 . $sql_v_org_s_ej . $sql_v_land_1 . $sql_v_stad_1 . $org_type_code . "','" . $username . "',GETDATE(),1)";
        }
        else {
-       	  $sql_i = "INSERT INTO Rule_org_type_match (" . $sql_land_s . $sql_country_code  
+             $sql_i = "INSERT INTO Rule_org_type_match (" . $sql_land_s . $sql_country_code
           . $sql_stad_s
           . "Find_org_1," . $sql_org_s_2 . $sql_org_s_ej . $sql_land_1 . $sql_stad_1 . "Org_type_code,User_id,Rule_date,Run_status) VALUES (" . $sql_v_land_s .  $sql_v_country_code
-          . $sql_v_stad_s 
-          . $org_s_1 . "','" . $sql_v_org_s_2 . $sql_v_org_s_ej . $sql_v_land_1 . $sql_v_stad_1 . $org_type_code . "','" . $username . "',GETDATE(),1)";  
+          . $sql_v_stad_s
+          . $org_s_1 . "','" . $sql_v_org_s_2 . $sql_v_org_s_ej . $sql_v_land_1 . $sql_v_stad_1 . $org_type_code . "','" . $username . "',GETDATE(),1)";
        }
 
        $stmt = $dbh->query( $sql_i );
@@ -341,13 +341,13 @@ if (isset($_POST['spara'])) {
        if ($count = $stmt->rowCount() > 0) {
           echo '<script language="javascript">';
           echo 'alert("Regeln är sparad!")';
-          echo '</script>';  
-          $_SESSION['n_regel_o_typ'] = $org_s_1;          
+          echo '</script>';
+          $_SESSION['n_regel_o_typ'] = $org_s_1;
        }
        else {
           echo '<script language="javascript">';
           echo 'alert("Fel vid sparande av regeln!")';
-          echo '</script>';            
+          echo '</script>';
        }
 
        // Blanka sparad regels textfält
@@ -361,58 +361,58 @@ if (isset($_POST['spara'])) {
 
 }
 
-	// Hämta länder ur tabellen Country
+    // Hämta länder ur tabellen Country
 
-	$sql_c = "SELECT Display_name FROM country";
+    $sql_c = "SELECT Display_name FROM country";
 
-	// Execute it, or let it throw an error message if there's a problem.
+    // Execute it, or let it throw an error message if there's a problem.
 
-	$stmt = $dbh->query( $sql_c );
+    $stmt = $dbh->query( $sql_c );
 
     $dropdown = "<select name='country' hidden id='id_country'>";
 
-	foreach ($stmt as $row) {
+    foreach ($stmt as $row) {
 
     $dropdown .= "\r\n<option value='{$row['Display_name']}'>{$row['Display_name']}</option>";
 
-	}
+    }
 
-	$dropdown .= "\r\n</select>";
+    $dropdown .= "\r\n</select>";
 
-	echo $dropdown;
+    echo $dropdown;
 
-	// Hämta organisationstyp ur tabellen Organization_type
+    // Hämta organisationstyp ur tabellen Organization_type
 
-	$sql_o = "SELECT Org_type_eng FROM organization_type";
+    $sql_o = "SELECT Org_type_eng FROM organization_type";
 
-	// Execute it, or let it throw an error message if there's a problem.
+    // Execute it, or let it throw an error message if there's a problem.
 
-	$stmt = $dbh->query( $sql_o );
+    $stmt = $dbh->query( $sql_o );
 
     $dropdown = "<select name='organization_type' hidden id='id_organization_type'>";
 
-	foreach ($stmt as $row) {
+    foreach ($stmt as $row) {
 
     $dropdown .= "\r\n<option value='{$row['Org_type_eng']}'>{$row['Org_type_eng']}</option>";
 
-	}
+    }
 
-	$dropdown .= "\r\n</select>";
+    $dropdown .= "\r\n</select>";
 
-	echo $dropdown;
+    echo $dropdown;
 
 ?>
 
-<h2>NY REGEL ORGANISATIONSTYP</h2>	
-	                                    
-		    <form action="ny_regel_o_typ.php" method="post">
+<h2>NY REGEL ORGANISATIONSTYP</h2>
+
+            <form action="ny_regel_o_typ.php" method="post">
 
                 <input type="submit" name="spara" value="Spara regel"/>&nbsp;&nbsp;
                 <a href='regel_organisation_typ.php'>TILL SÖKNING</a>&nbsp;&nbsp;
                 <a href='adressmeny.php'>TILL MENYN</a>
                 <br /><br />
 
-                <h3>SÖKFÄLT</h3>    
+                <h3>SÖKFÄLT</h3>
 
                 Land:</br>
                 <select id="id_s_land" name="Land">
@@ -420,35 +420,35 @@ if (isset($_POST['spara'])) {
                 </select>
                 &nbsp;<input type="text" name="Soek_land_s" id="id_soek_land_s" onchange="f_populera_soek_Land_S()" value="<?php echo $land_s; ?>"/>
                 <br />
-			    Stad:</br> 
-				<input type="text" name="Stad" id="id_s_stad" value="<?php echo $stad_s; ?>" /><br />
-			    Organisation, sträng 1 #:</br> 
-				<input type="text" name="Org_1" id="id_s_org_1" value="<?php echo $org_s_1; ?>" /><br />
-			    Organisation, sträng 2:</br> 
-				<input type="text" name="Org_2" id="id_s_org_2" value="<?php echo $org_s_2; ?>" /><br />
-			    Organisation, sträng ej:</br> 
-				<input type="text" name="Org_ej" id="id_s_org_ej" value="<?php echo $org_s_ej; ?>" /><br />
-				
-				<h3>ÄNDRINGSFÄLT</h3>
+                Stad:</br>
+                <input type="text" name="Stad" id="id_s_stad" value="<?php echo $stad_s; ?>" /><br />
+                Organisation, sträng 1 #:</br>
+                <input type="text" name="Org_1" id="id_s_org_1" value="<?php echo $org_s_1; ?>" /><br />
+                Organisation, sträng 2:</br>
+                <input type="text" name="Org_2" id="id_s_org_2" value="<?php echo $org_s_2; ?>" /><br />
+                Organisation, sträng ej:</br>
+                <input type="text" name="Org_ej" id="id_s_org_ej" value="<?php echo $org_s_ej; ?>" /><br />
+
+                <h3>ÄNDRINGSFÄLT</h3>
 
                 Organisationstyp #:</br>
                 <select id="id_s_orgtyp" name="Orgtyp">
                     <option>Ange organisationstyp</option>
                 </select>
                 <br />
-			    Annat land:<br />
+                Annat land:<br />
                 <select id="id_h_land_1" name="Land_1">
                     <option>Ange land</option>
                 </select>
-                &nbsp;<input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" onchange="f_populera_soek_Land_H_1()" />				
-                <br />				
-				Annan stad:<br /> 
-				<input type="text" name="Stad_1" id="h_id_stad_1" value="<?php echo $stad_1; ?>" /><br />
-				<br />	
-				
-		    </form>
+                &nbsp;<input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" onchange="f_populera_soek_Land_H_1()" />
+                <br />
+                Annan stad:<br />
+                <input type="text" name="Stad_1" id="h_id_stad_1" value="<?php echo $stad_1; ?>" /><br />
+                <br />
+
+            </form>
 
 <p>De fält som har en # efter är obligatoriska.</p>
-								
-	</body>
+
+    </body>
 </html>

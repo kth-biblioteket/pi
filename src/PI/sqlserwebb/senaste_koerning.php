@@ -39,50 +39,50 @@ $dbh = bibmet_sqlsrv_connect_or_redirect("BIBMET");
     $dbname = "BIBMET";
 
 
-	// Write out our query.
+    // Write out our query.
 
-	$query = "SELECT Run_date FROM rule_center_rundate 
+    $query = "SELECT Run_date FROM rule_center_rundate
     WHERE Run_date = (SELECT MAX(Run_date) FROM rule_center_rundate)";
 
-	// Execute it, or let it throw an error message if there's a problem.
+    // Execute it, or let it throw an error message if there's a problem.
 
-	$stmt = $dbh->query( $query );
+    $stmt = $dbh->query( $query );
 
     foreach ($stmt as $row) {
-        $imp_dat_c = $row['Run_date'];        
+        $imp_dat_c = $row['Run_date'];
     }
 
-	$query = "SELECT Run_date FROM rule_full_address_rundate 
+    $query = "SELECT Run_date FROM rule_full_address_rundate
     WHERE Run_date = (SELECT MAX(Run_date) FROM rule_full_address_rundate)";
 
-	// Execute it, or let it throw an error message if there's a problem.
+    // Execute it, or let it throw an error message if there's a problem.
 
-	$stmt = $dbh->query( $query );
+    $stmt = $dbh->query( $query );
 
     foreach ($stmt as $row) {
-        $imp_dat_f_a = $row['Run_date'];        
+        $imp_dat_f_a = $row['Run_date'];
     }
 
-	$query = "SELECT Run_date FROM rule_org_rundate 
+    $query = "SELECT Run_date FROM rule_org_rundate
     WHERE Run_date = (SELECT MAX(Run_date) FROM rule_org_rundate)";
 
-	// Execute it, or let it throw an error message if there's a problem.
+    // Execute it, or let it throw an error message if there's a problem.
 
-	$stmt = $dbh->query( $query );
+    $stmt = $dbh->query( $query );
 
     foreach ($stmt as $row) {
-        $imp_dat_o = $row['Run_date'];        
+        $imp_dat_o = $row['Run_date'];
     }
 
-	$query = "SELECT Run_date FROM rule_org_type_rundate 
+    $query = "SELECT Run_date FROM rule_org_type_rundate
     WHERE Run_date = (SELECT MAX(Run_date) FROM rule_org_type_rundate)";
 
-	// Execute it, or let it throw an error message if there's a problem.
+    // Execute it, or let it throw an error message if there's a problem.
 
-	$stmt = $dbh->query( $query );
+    $stmt = $dbh->query( $query );
 
     foreach ($stmt as $row) {
-        $imp_dat_o_typ = $row['Run_date'];        
+        $imp_dat_o_typ = $row['Run_date'];
     }
 
 ?>
@@ -97,19 +97,19 @@ $dbh = bibmet_sqlsrv_connect_or_redirect("BIBMET");
 <br /><br /><br />
 
 Senaste adressrättning för organisation: <br />
-<input type="text" name="Improve_date_o" size="10" value="<?php echo $imp_dat_o; ?>" disabled /> 
+<input type="text" name="Improve_date_o" size="10" value="<?php echo $imp_dat_o; ?>" disabled />
 
 <br /><br />
 Senaste adressrättning för centra: <br />
-<input type="text" name="Improve_date_c" size="10" value="<?php echo $imp_dat_c; ?>" disabled /> 
+<input type="text" name="Improve_date_c" size="10" value="<?php echo $imp_dat_c; ?>" disabled />
 
 <br /><br />
 Senaste adressrättning för full adress: <br />
-<input type="text" name="Improve_date_f_a" size="10" value="<?php echo $imp_dat_f_a; ?>" disabled/> 
+<input type="text" name="Improve_date_f_a" size="10" value="<?php echo $imp_dat_f_a; ?>" disabled/>
 
 <br /><br />
 Senaste adressrättning för organisationstyp: <br />
-<input type="text" name="Improve_date_o_typ" size="10" value="<?php echo $imp_dat_o_typ; ?>" disabled/> 
+<input type="text" name="Improve_date_o_typ" size="10" value="<?php echo $imp_dat_o_typ; ?>" disabled/>
 
 <br /><br />
 
@@ -117,7 +117,7 @@ Senaste adressrättning för organisationstyp: <br />
 
 <h3>Måndag och onsdag: alla regler utom fulladressregler körs.</h3>
 
-<h3>Fredag: alla regler körs.</h3> 
+<h3>Fredag: alla regler körs.</h3>
 
 <h3>Om flera regler får träff på en forskaradress, så sker en prioritering utifrån hög splittringsfaktor, senaste regeldatum, högsta regelid.</h3>
 

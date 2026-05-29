@@ -16,9 +16,9 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     <meta charset="utf-8">
 
     <title>ÄNDRA REGEL ORGANISATIONSTYP</title>
-	
-    <link href="Site.css" rel="stylesheet"> 
-	
+
+    <link href="Site.css" rel="stylesheet">
+
 </head>
 
 <body>
@@ -26,7 +26,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 <?php include('include_head_new.html'); ?>
 
 <?php
-    
+
     $regel_id = $_SESSION['regel_id'];
 
     $_SESSION['regel_id_ut'] = $regel_id;
@@ -65,7 +65,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     $stad_1_till = str_replace($Sk, $Ers, $stad_1_till);
     $land_till = str_replace($Sk, $Ers, $land_till);
     $land_1_till = str_replace($Sk, $Ers, $land_1_till);
- 
+
     // Ändra regeln
 
     $koll_svar = false;
@@ -76,143 +76,143 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     else {
 
          if (strlen($org_till_1) == 0) {
-            echo "<script>alert('Organisation sträng 1 måste anges som sökfält!');</script>";                  
+            echo "<script>alert('Organisation sträng 1 måste anges som sökfält!');</script>";
          }
          else {
-            $koll_svar = true;                 
-         }        
+            $koll_svar = true;
+         }
     }
 
     if ($koll_svar) {
 
         if ($koll_svar && $a_regel_o_typ_id <> $regel_id) {
             if (strlen($land_till) > 0) {
-                $sql_country = "SELECT Country_code FROM Country WHERE Display_name = '" . $land_till . "'";                
+                $sql_country = "SELECT Country_code FROM Country WHERE Display_name = '" . $land_till . "'";
                 $stmt = $dbh->query( $sql_country );
                 foreach ($stmt as $row) {
-                    $country_code = $row['Country_code'];      
-                } 
+                    $country_code = $row['Country_code'];
+                }
             }
             else {
                 $country_code = NULL;
             }
-    
+
             $org_typ_code = NULL;
             $sql_orgtyp = "SELECT Org_type_code FROM Organization_type WHERE Org_type_eng = '" . $orgtyp_till . "'";
             $stmt = $dbh->query( $sql_orgtyp );
             foreach ($stmt as $row) {
-                $org_typ_code = $row['Org_type_code'];      
+                $org_typ_code = $row['Org_type_code'];
             }
-          
-       		$foere = 0;
+
+               $foere = 0;
        // Land_s
        // Country_code
        if ($land_till == 'Ange land') {
-          	$sql_stad_till = "Find_country = null,";
-	  	$sql_country_code = "Country_code = null,";
+              $sql_stad_till = "Find_country = null,";
+          $sql_country_code = "Country_code = null,";
        }
        else {
-          	$sql_land_till = "Find_country = '" . $land_till . "',";
-          	$sql_country_code = "Country_code = '" . $country_code . "',";
-          	$foere = 1;
+              $sql_land_till = "Find_country = '" . $land_till . "',";
+              $sql_country_code = "Country_code = '" . $country_code . "',";
+              $foere = 1;
        }
        // Stad_s
        if (strlen($stad_till) == 0) {
                 $sql_stad_s = "Find_city = null,";
        }
-       	else {
+           else {
                 $sql_stad_s = "Find_city = '" . $stad_till . "',";
        }
        // Org_s_2
        if (strlen($org_till_2) == 0) {
-           	$sql_org_till_2 = "Find_org_2 = null,";
+               $sql_org_till_2 = "Find_org_2 = null,";
        }
        else {
                 $sql_org_till_2 = "Find_org_2 = '" . $org_till_2 . "',";
        }
        // Org_s_ej
        if (strlen($org_till_ej) == 0) {
-           	$sql_org_till_ej = "Find_org_not = null,";
+               $sql_org_till_ej = "Find_org_not = null,";
        }
        else {
                 $sql_org_till_ej = "Find_org_not = '" . $org_till_ej . "',";
        }
        // Land_1
        if ($land_1_till == 'Ange land') {
-           	$sql_land_1_till = "Country = null,";
+               $sql_land_1_till = "Country = null,";
        }
        else {
                 $sql_land_1_till = "Country = '" . $land_1_till . "',";
        }
        // Stad_1
        if (strlen($stad_1_till) == 0) {
-           	$sql_stad_1_till = "City = null,";
+               $sql_stad_1_till = "City = null,";
        }
        else {
                 $sql_stad_1_till = "City = '" . $stad_1_till . "',";
        }
 
-            $sql_u = "UPDATE Rule_org_type_match SET " . $sql_land_till . $sql_country_code 
-            . $sql_stad_s . $sql_land_1_till . $sql_stad_1_till . "Org_type_code = '" . $org_typ_code   
-            . "',Find_org_1 = '" . $org_till_1 . "', " . $sql_org_till_2 . $sql_org_till_ej  
-            . "User_id = '" . $username . "',Rule_date = GETDATE(),Run_status = 1 WHERE R_o_t_m_id = " . $regel_id;  
- 
+            $sql_u = "UPDATE Rule_org_type_match SET " . $sql_land_till . $sql_country_code
+            . $sql_stad_s . $sql_land_1_till . $sql_stad_1_till . "Org_type_code = '" . $org_typ_code
+            . "',Find_org_1 = '" . $org_till_1 . "', " . $sql_org_till_2 . $sql_org_till_ej
+            . "User_id = '" . $username . "',Rule_date = GETDATE(),Run_status = 1 WHERE R_o_t_m_id = " . $regel_id;
+
             $stmt = $dbh->query( $sql_u );
-            
-            if ($count = $stmt->rowCount() > 0) {                
+
+            if ($count = $stmt->rowCount() > 0) {
                 echo '<script language="javascript">';
                 echo 'alert("Regeln är nu ändrad!")';
-                echo '</script>'; 
-                $_SESSION['a_regel_o_typ_id'] = $regel_id;           
+                echo '</script>';
+                $_SESSION['a_regel_o_typ_id'] = $regel_id;
             }
-            else {        
+            else {
                 echo '<script language="javascript">';
                 echo 'alert("Fel vid ändring av regeln!")';
-                echo '</script>';            
+                echo '</script>';
             }
-           
+
         }
-        
+
     }
 
 ?>
 
-<h2>ÄNDRA REGEL ORGANISATIONSTYP</h2>	
-	                                    
-		<form action="aendra_regel_resultat_o_typ.php" method="post">
+<h2>ÄNDRA REGEL ORGANISATIONSTYP</h2>
+
+        <form action="aendra_regel_resultat_o_typ.php" method="post">
                 <a href='aendra_regel_o_typ.php'>TILLBAKA</a>&nbsp;&nbsp;
                 <a href='regel_organisation_typ.php'>TILL SÖKNING</a>&nbsp;&nbsp;
                 <a href='adressmeny.php'>TILL MENYN</a>
                 <br /><br />
 
-                <h3>SÖKFÄLT</h3>    
-                
+                <h3>SÖKFÄLT</h3>
+
                 Land:</br>
                 <input type="text" name="Land" id="id_land_s" value="<?php echo $land_till; ?>" disabled />
                 <br />
-			    Stad:</br> 
-				<input type="text" name="Stad" id="id_s_stad" value="<?php echo $stad_till; ?>" disabled />
+                Stad:</br>
+                <input type="text" name="Stad" id="id_s_stad" value="<?php echo $stad_till; ?>" disabled />
                 <br />
-			    Organisation, sträng 1:</br> 
-				<input type="text" name="Organisation1" id="id_s_org_1" value="<?php echo $org_till_1; ?>" disabled /><br />
-			    Organisation, sträng 2:</br> 
-				<input type="text" name="Organisation2" id="id_s_org_2" value="<?php echo $org_till_2; ?>" disabled /><br />
-			    Organisation, sträng ej:</br> 
-				<input type="text" name="Organisationej" id="id_s_org_ej" value="<?php echo $org_till_ej; ?>" disabled /><br />
-				
-				<h3>ÄNDRINGSFÄLT</h3>
-			    
+                Organisation, sträng 1:</br>
+                <input type="text" name="Organisation1" id="id_s_org_1" value="<?php echo $org_till_1; ?>" disabled /><br />
+                Organisation, sträng 2:</br>
+                <input type="text" name="Organisation2" id="id_s_org_2" value="<?php echo $org_till_2; ?>" disabled /><br />
+                Organisation, sträng ej:</br>
+                <input type="text" name="Organisationej" id="id_s_org_ej" value="<?php echo $org_till_ej; ?>" disabled /><br />
+
+                <h3>ÄNDRINGSFÄLT</h3>
+
                 Organisationstyp:</br>
                 <input type="text" name="Orgtyp_ut" value="<?php echo $orgtyp_till; ?>" disabled />&nbsp;&nbsp;
                 </br>
-			    Annat land:<br />
-                <input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" size="20" value="<?php echo $land_1_till; ?>" disabled />				
-                <br />				
-				Annan stad:<br /> 
-				<input type="text" name="Annan_stad_1" id="h_id_stad_1" value="<?php echo $stad_1_till; ?>" disabled /><br />
-				<br />		
-				
-		    </form>
-								
-	</body>
+                Annat land:<br />
+                <input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" size="20" value="<?php echo $land_1_till; ?>" disabled />
+                <br />
+                Annan stad:<br />
+                <input type="text" name="Annan_stad_1" id="h_id_stad_1" value="<?php echo $stad_1_till; ?>" disabled /><br />
+                <br />
+
+            </form>
+
+    </body>
 </html>

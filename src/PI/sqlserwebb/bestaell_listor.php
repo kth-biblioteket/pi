@@ -31,7 +31,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 <?php include('include_head_new.html'); ?>
 
 <?php
-    
+
     $username = $_SESSION['anv'];
     $password = $_SESSION['ord'];
     $hostname = $_SESSION['hnamn'];
@@ -48,19 +48,19 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
           if (strlen($Aemne) >= 5) {
              $Search_text = $Aemne;
-             $List_typ = 1;        
-          }  
- 
+             $List_typ = 1;
+          }
+
        }
        else {
 
           $Titel = $_POST['Titel'];
 
-          if (strlen($Titel) >= 10) {  
+          if (strlen($Titel) >= 10) {
              $Search_text = $Titel;
              $List_typ = 2;
-          } 
-        
+          }
+
        }
 
        if ($List_typ > 0) {
@@ -69,9 +69,9 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
           $sqlbestnr = "SELECT NEXT VALUE FOR dbo.ID_Seq AS Bestnr;";
           $stmt = $dbh->query( $sqlbestnr );
           foreach ($stmt as $row) {
-             $Bestnr = $row['Bestnr'];        
-          } 
-             
+             $Bestnr = $row['Bestnr'];
+          }
+
           if ($List_typ == 1) {
              $Bestnr_1 = $Bestnr;
           }
@@ -80,13 +80,13 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
           }
 
           // Lägg in beställningspost
-          $stmt = $dbh->prepare("INSERT INTO Order_List 
-          (Order_id,Order_date,List_type,Search_text,Order_user) 
+          $stmt = $dbh->prepare("INSERT INTO Order_List
+          (Order_id,Order_date,List_type,Search_text,Order_user)
           VALUES (:Bestnr,GETDATE(),:List_typ,:Search_text,:Order_user);");
-          $stmt->bindParam(':Bestnr', $Bestnr);     
+          $stmt->bindParam(':Bestnr', $Bestnr);
           $stmt->bindParam(':Search_text', $Search_text);
-          $stmt->bindParam(':List_typ', $List_typ);    
-          $stmt->bindParam(':Order_user', $username);  
+          $stmt->bindParam(':List_typ', $List_typ);
+          $stmt->bindParam(':Order_user', $username);
           $stmt->execute();
 
        }

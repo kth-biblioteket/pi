@@ -20,15 +20,15 @@
 function validateForm() {
 
     var x = document.forms["myForm"]["Anv"].value;
-	var y = document.forms["myForm"]["Ord"].value;
+    var y = document.forms["myForm"]["Ord"].value;
     if (x == null || x == "") {
         alert("Användarid måste anges!");
         return false;
     }
     if (y == null || y == "") {
         alert("Lösenordet måste anges!");
-        return false; 
-    }	
+        return false;
+    }
 
 }
 

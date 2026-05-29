@@ -16,8 +16,8 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     <meta charset="utf-8">
 
     <title>TA BORT ORGANISATIONSNAMN</title>
-	
-    <link href="Site.css" rel="stylesheet"> 
+
+    <link href="Site.css" rel="stylesheet">
 
 <script type="text/javascript">
 
@@ -265,7 +265,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     }
 
 </script>
-	
+
 </head>
 
 <body onload="f_Ladda_sida()">
@@ -273,11 +273,11 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 <?php include('include_head_new.html'); ?>
 
 <?php
-       
+
     $u_org_id = $_GET["Unified_org_id"];
 
     if (intval($u_org_id) > 0) {
- 
+
         $_SESSION['u_org_id'] = $u_org_id;
 
         $username = $_SESSION['anv'];
@@ -288,21 +288,21 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
         // Visa organisationen att ta ändra
 
-        $sql = "SELECT Unified_org_id,Name_local,Name_en,Country_name,Org_type_code,Comment,User_id,Latest_date,ROR_id FROM unified_org_names WHERE Unified_org_id = " . $u_org_id; 
+        $sql = "SELECT Unified_org_id,Name_local,Name_en,Country_name,Org_type_code,Comment,User_id,Latest_date,ROR_id FROM unified_org_names WHERE Unified_org_id = " . $u_org_id;
 
         $stmt = $dbh->query( $sql );
 
-    	foreach ($stmt as $row) {
+        foreach ($stmt as $row) {
             $unified_org_id = $row['Unified_org_id'];
             $namn_lok = $row['Name_local'];
             $namn_eng = $row['Name_en'];
             $land = $row['Country_name'];
             $orgtyp = $row['Org_type_code'];
-            $komm = $row['Comment']; 
+            $komm = $row['Comment'];
             $user_id = $row['User_id'];
             $latest_date = $row['Latest_date'];
-            $rorid = $row['ROR_id'];                                                  
-    	}
+            $rorid = $row['ROR_id'];
+        }
 
         $_SESSION['unified_org_id'] = $unified_org_id;
         $_SESSION['namn_lok'] = $namn_lok;
@@ -314,80 +314,80 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
         $_SESSION['latest_date'] = $latest_date;
         $_SESSION['rorid'] = $rorid;
 
-    	// Hämta länder ur tabellen Country
+        // Hämta länder ur tabellen Country
 
-    	$sql_c = "SELECT Display_name FROM country";
+        $sql_c = "SELECT Display_name FROM country";
 
-    	// Execute it, or let it throw an error message if there's a problem.
+        // Execute it, or let it throw an error message if there's a problem.
 
-    	$stmt = $dbh->query( $sql_c );
+        $stmt = $dbh->query( $sql_c );
 
         $dropdown = "<select name='country' hidden id='id_country'>";
 
-    	foreach ($stmt as $row) {
+        foreach ($stmt as $row) {
 
         $dropdown .= "\r\n<option value='{$row['Display_name']}'>{$row['Display_name']}</option>";
 
-    	}
+        }
 
-    	$dropdown .= "\r\n</select>";
+        $dropdown .= "\r\n</select>";
 
-    	echo $dropdown;
+        echo $dropdown;
 
-    	// Hämta organisationstyper ur tabellen Organization_type
+        // Hämta organisationstyper ur tabellen Organization_type
 
-    	$sql_o = "SELECT Org_type_eng FROM Organization_type";
+        $sql_o = "SELECT Org_type_eng FROM Organization_type";
 
-    	// Execute it, or let it throw an error message if there's a problem.
+        // Execute it, or let it throw an error message if there's a problem.
 
-    	$stmt = $dbh->query( $sql_o );
+        $stmt = $dbh->query( $sql_o );
 
         $dropdown = "<select name='organization_type' hidden id='id_orgtyp_dold'>";
 
-    	foreach ($stmt as $row) {
+        foreach ($stmt as $row) {
 
         $dropdown .= "\r\n<option value='{$row['Org_type_eng']}'>{$row['Org_type_eng']}</option>";
 
-    	}
+        }
 
-    	$dropdown .= "\r\n</select>";
+        $dropdown .= "\r\n</select>";
 
-    	echo $dropdown;
+        echo $dropdown;
 
         $sql_orgtyp = "SELECT Org_type_eng FROM Organization_type WHERE Org_type_code = '" . $orgtyp . "'";
         $stmt = $dbh->query( $sql_orgtyp );
         foreach ($stmt as $row) {
-            $org_typ_eng = $row['Org_type_eng'];      
-        } 
+            $org_typ_eng = $row['Org_type_eng'];
+        }
 
         // Kontrollera om organisationsnamnet finns i rättningsregler
         $finns_regel = 0;
-        $sql_kolla_o = "SELECT COUNT(*) AS Antal FROM rule_org_match WHERE Org_id_1 = ". $u_org_id ." OR Org_id_2 = ". 
+        $sql_kolla_o = "SELECT COUNT(*) AS Antal FROM rule_org_match WHERE Org_id_1 = ". $u_org_id ." OR Org_id_2 = ".
         $u_org_id ." OR Org_id_3 = ". $u_org_id;
         $stmt = $dbh->query( $sql_kolla_o );
         foreach ($stmt as $row) {
-            $antal = $row['Antal'];      
-        } 
+            $antal = $row['Antal'];
+        }
         if ($antal > 0) {
             $finns_regel = 1;
         }
         if (!$finns_regel) {
-            $sql_kolla_f_a = "SELECT COUNT(*) AS Antal FROM rule_full_address_match WHERE Org_id_1 = ". $u_org_id ." OR Org_id_2 = ". 
+            $sql_kolla_f_a = "SELECT COUNT(*) AS Antal FROM rule_full_address_match WHERE Org_id_1 = ". $u_org_id ." OR Org_id_2 = ".
             $u_org_id ." OR Org_id_3 = ". $u_org_id;
             $stmt = $dbh->query( $sql_kolla_f_a );
             foreach ($stmt as $row) {
-                $antal = $row['Antal'];      
-            } 
+                $antal = $row['Antal'];
+            }
             if ($antal > 0) {
                 $finns_regel = 1;
             }
         }
         if (!$finns_regel) {
-            $sql_kolla_c = "SELECT COUNT(*) AS Antal FROM rule_center_match WHERE Org_id_1 = ". $u_org_id ." OR Org_id_2 = ". 
+            $sql_kolla_c = "SELECT COUNT(*) AS Antal FROM rule_center_match WHERE Org_id_1 = ". $u_org_id ." OR Org_id_2 = ".
             $u_org_id ." OR Org_id_3 = ". $u_org_id;
             $stmt = $dbh->query( $sql_kolla_c );
             foreach ($stmt as $row) {
-                $antal = $row['Antal'];      
+                $antal = $row['Antal'];
             }
             if ($antal > 0) {
                 $finns_regel = 1;
@@ -398,36 +398,36 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
 ?>
 
-<h2>TA BORT ORGANISATIONSNAMN</h2>	
-	                                    
-		    <form action="ta_bort_organisation_resultat.php" onsubmit="return validateForm()" name="taBort" method="post">
+<h2>TA BORT ORGANISATIONSNAMN</h2>
+
+            <form action="ta_bort_organisation_resultat.php" onsubmit="return validateForm()" name="taBort" method="post">
 
                 <input type="submit" name="spara" value="Radera organisation"/>&nbsp;&nbsp;
                 <a href='organisationsnamn.php'>TILL SÖKNING</a>&nbsp;&nbsp;
                 <a href='adressmeny.php'>TILL MENYN</a>
                 <br />
 
-                <br />  
-                
-                <input type="text" name="Antal" value="<?php echo $finns_regel; ?>" hidden />&nbsp;&nbsp;  
                 <br />
-                 
-                ORSAK:</br> 
-				<input type="text" name="orsak" maxlength="100">&nbsp;&nbsp; 
+
+                <input type="text" name="Antal" value="<?php echo $finns_regel; ?>" hidden />&nbsp;&nbsp;
+                <br />
+
+                ORSAK:</br>
+                <input type="text" name="orsak" maxlength="100">&nbsp;&nbsp;
                 <br />
 
                 <br /><br />
 
-			    Orgid:</br> 
-				<input type="text" name="Orgid" value="<?php echo $u_org_id; ?>" disabled />&nbsp;&nbsp; 
+                Orgid:</br>
+                <input type="text" name="Orgid" value="<?php echo $u_org_id; ?>" disabled />&nbsp;&nbsp;
                 <br />
 
-			    Lokalt namn:</br> 
-				<input type="text" name="Namn_lok_ut" value="<?php echo $namn_lok; ?>" disabled />&nbsp;&nbsp; 
+                Lokalt namn:</br>
+                <input type="text" name="Namn_lok_ut" value="<?php echo $namn_lok; ?>" disabled />&nbsp;&nbsp;
                 <br />
 
-			    Engelskt namn:</br> 
-				<input type="text" name="Namn_eng_ut" value="<?php echo $namn_eng; ?>" disabled />&nbsp;&nbsp; 
+                Engelskt namn:</br>
+                <input type="text" name="Namn_eng_ut" value="<?php echo $namn_eng; ?>" disabled />&nbsp;&nbsp;
                 <br />
 
                 Land:</br>
@@ -438,16 +438,16 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
                 <input type="text" name="Orgtyp_ut" value="<?php echo $org_typ_eng; ?>" disabled />&nbsp;&nbsp;
                 <br />
 
-			    Kommentar:</br> 
-				<input type="text" name="Komm_ut" value="<?php echo $komm; ?>" disabled />&nbsp;&nbsp; 
+                Kommentar:</br>
+                <input type="text" name="Komm_ut" value="<?php echo $komm; ?>" disabled />&nbsp;&nbsp;
                 <br />
 
-			    ROR-id:</br> 
-				<input type="text" name="RORid" value="<?php echo $rorid; ?>" disabled />&nbsp;&nbsp; 
+                ROR-id:</br>
+                <input type="text" name="RORid" value="<?php echo $rorid; ?>" disabled />&nbsp;&nbsp;
                 <br />
-				
-		    </form>
-								
-	</body>
+
+            </form>
+
+    </body>
 
 </html>
