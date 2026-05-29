@@ -31,63 +31,14 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Regler full adress</title>
     <link href="Site_utan_storlek.css" rel="stylesheet">
+    <link href="vendor/tom-select/tom-select.css" rel="stylesheet">
     <?php include("include_bibmet_kth.html"); ?>
-
-    <script>
-        let landlista = [];
-
-        function f_populera_Land() {
-            const countries = document.getElementById("id_country");
-            landlista = [];
-
-            for (let i = 0; i < countries.length; i++) {
-                landlista.push(countries.options[i].text);
-            }
-
-            document.getElementById("id_soek_land_s").value = "*";
-            f_populera_soek_Land_S();
-        }
-
-        function f_populera_soek_Land_S() {
-            const searchValue = document.getElementById("id_soek_land_s").value;
-
-            if (searchValue === "") {
-                return true;
-            }
-
-            const countrySelect = document.getElementById("id_s_land");
-
-            while (countrySelect.length > 1) {
-                countrySelect.remove(1);
-            }
-
-            for (let i = 0; i < landlista.length; i++) {
-                const optionText = landlista[i];
-
-                if (searchValue === "*" || optionText.toUpperCase().indexOf(searchValue.toUpperCase()) > -1) {
-                    const option = document.createElement("option");
-                    option.textContent = optionText;
-                    option.value = optionText;
-                    countrySelect.appendChild(option);
-                }
-            }
-
-            return true;
-        }
-
-        function f_Ladda_sida() {
-            f_populera_Land();
-            document.getElementById("id_soek_land_s").value = "*";
-        }
-    </script>
+    <script src="vendor/tom-select/tom-select.complete.min.js"></script>
+    <script src="bibmet-selects.js"></script>
 </head>
 
-<body class="bibmet-body" onload="f_Ladda_sida()">
+<body class="bibmet-body">
     <?php include("include_head_new.html"); ?>
-
-    <select name="country" hidden id="id_country">
-        <?php echo $countryOptions; ?>
-    </select>
 
     <main class="bibmet-main bibmet-main--form">
         <section class="bibmet-hero">
@@ -121,15 +72,13 @@ try {
                     <input type="text" name="Regelid" class="bibmet-input bibmet-input--short" inputmode="numeric">
                 </label>
 
-                <div class="bibmet-field">
+                <label class="bibmet-field">
                     <span class="bibmet-field__label">Land</span>
-                    <div class="bibmet-field-row">
-                        <select id="id_s_land" name="Land" class="bibmet-select">
-                            <option>Ange land</option>
-                        </select>
-                        <input type="text" name="Soek_land_s" id="id_soek_land_s" class="bibmet-input bibmet-input--short" onchange="f_populera_soek_Land_S()">
-                    </div>
-                </div>
+                    <select id="id_s_land" name="Land" class="bibmet-select js-bibmet-select">
+                        <option value="">Ange land</option>
+                        <?php echo $countryOptions; ?>
+                    </select>
+                </label>
 
                 <label class="bibmet-field">
                     <span class="bibmet-field__label">Stad</span>
