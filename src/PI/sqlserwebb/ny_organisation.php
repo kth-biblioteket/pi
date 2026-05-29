@@ -149,13 +149,11 @@ if (isset($_POST['spara'])) {
         <?php endif; ?>
 
         <?php if ($messages) : ?>
-            <section class="bibmet-panel">
-                <div class="bibmet-panel__body">
-                    <?php foreach ($messages as $message) : ?>
-                        <p class="bibmet-muted"><?php echo bibmet_h($message); ?></p>
-                    <?php endforeach; ?>
-                </div>
-            </section>
+            <div class="bibmet-alert bibmet-alert--success" role="status">
+                <?php foreach ($messages as $message) : ?>
+                    <p><?php echo bibmet_h($message); ?></p>
+                <?php endforeach; ?>
+            </div>
         <?php endif; ?>
 
         <form action="ny_organisation.php" method="post" class="bibmet-panel">

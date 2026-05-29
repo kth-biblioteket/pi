@@ -421,6 +421,12 @@
     margin: 0;
 }
 
+.bibmet-alert--success {
+    background: #f4fbf7;
+    border-left-color: #178a45;
+    color: #0f6b35;
+}
+
 .bibmet-result-header {
     border-bottom: 1px solid var(--kth-sand);
     padding: 16px 20px;
