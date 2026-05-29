@@ -1,35 +1,8 @@
 <?php
 require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
 $dbh = bibmet_sqlsrv_connect_or_redirect();
-
-function request_value($key, $default = "")
-{
-    return isset($_REQUEST[$key]) ? trim((string) $_REQUEST[$key]) : $default;
-}
-
-function h($value)
-{
-    if ($value instanceof DateTimeInterface) {
-        $value = $value->format("Y-m-d");
-    }
-
-    return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
-}
-
-function build_page_url($page)
-{
-    $params = $_REQUEST;
-    unset($params["clear"]);
-    $params["page"] = $page;
-
-    return $_SERVER["PHP_SELF"] . "?" . http_build_query($params);
-}
-
-function selected_attr($optionValue, $currentValue)
-{
-    return (string) $optionValue === (string) $currentValue ? ' selected' : '';
-}
 
 if (isset($_GET['clear'])) {
     unset(
@@ -53,13 +26,13 @@ $hasRequestFilters = !isset($_GET['clear']) && (isset($_REQUEST['Land'])
     || isset($_REQUEST['Orgtyp_till']));
 
 if ($hasRequestFilters) {
-    $land = request_value('Land');
-    $lok_namn = request_value('Lokaltnamn');
-    $eng_namn = request_value('Engelsktnamn');
-    $orgid = request_value('Orgid');
-    $rorid = request_value('RORid');
-    $kommentar = request_value('Kommentar');
-    $orgtyp_till = request_value('Orgtyp_till');
+    $land = bibmet_request_value('Land');
+    $lok_namn = bibmet_request_value('Lokaltnamn');
+    $eng_namn = bibmet_request_value('Engelsktnamn');
+    $orgid = bibmet_request_value('Orgid');
+    $rorid = bibmet_request_value('RORid');
+    $kommentar = bibmet_request_value('Kommentar');
+    $orgtyp_till = bibmet_request_value('Orgtyp_till');
     $exaktkoll = isset($_REQUEST['exaktkoll']);
 
     $_SESSION['land'] = $land;
@@ -81,7 +54,7 @@ if ($hasRequestFilters) {
     $exaktkoll = isset($_SESSION['exaktkoll']) ? $_SESSION['exaktkoll'] === '1' : true;
 }
 
-$page = max(1, (int) request_value("page", "1"));
+$page = max(1, (int) bibmet_request_value("page", "1"));
 $pageSize = 50;
 $offset = ($page - 1) * $pageSize;
 $errors = [];
@@ -263,7 +236,7 @@ $columns = [
                     <h1 class="bibmet-title">Organisationsnamn</h1>
                     <p class="bibmet-muted">
                         <?php if ($filters) : ?>
-                            Filtrerat på <?php echo h(implode(", ", $filters)); ?>.
+                            Filtrerat på <?php echo bibmet_h(implode(", ", $filters)); ?>.
                         <?php else : ?>
                             Visar alla organisationsnamn.
                         <?php endif; ?>
@@ -288,7 +261,7 @@ $columns = [
                 <div class="bibmet-form-grid bibmet-form-grid--compact">
                     <label class="bibmet-field">
                         <span class="bibmet-field__label">Orgid</span>
-                        <input class="bibmet-input bibmet-input--short" type="text" name="Orgid" value="<?php echo h($orgid); ?>">
+                        <input class="bibmet-input bibmet-input--short" type="text" name="Orgid" value="<?php echo bibmet_h($orgid); ?>">
                     </label>
 
                     <label class="bibmet-field">
@@ -296,24 +269,24 @@ $columns = [
                         <select class="bibmet-select js-bibmet-select" name="Land">
                             <option value="">Ange land</option>
                             <?php foreach ($countries as $country) : ?>
-                                <option value="<?php echo h($country); ?>"<?php echo selected_attr($country, $land); ?>><?php echo h($country); ?></option>
+                                <option value="<?php echo bibmet_h($country); ?>"<?php echo bibmet_selected_attr($country, $land); ?>><?php echo bibmet_h($country); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </label>
 
                     <label class="bibmet-field">
                         <span class="bibmet-field__label">Lokalt namn</span>
-                        <input class="bibmet-input" type="text" name="Lokaltnamn" value="<?php echo h($lok_namn); ?>">
+                        <input class="bibmet-input" type="text" name="Lokaltnamn" value="<?php echo bibmet_h($lok_namn); ?>">
                     </label>
 
                     <label class="bibmet-field">
                         <span class="bibmet-field__label">Engelskt namn</span>
-                        <input class="bibmet-input" type="text" name="Engelsktnamn" value="<?php echo h($eng_namn); ?>">
+                        <input class="bibmet-input" type="text" name="Engelsktnamn" value="<?php echo bibmet_h($eng_namn); ?>">
                     </label>
 
                     <label class="bibmet-field">
                         <span class="bibmet-field__label">ROR-id</span>
-                        <input class="bibmet-input" type="text" name="RORid" value="<?php echo h($rorid); ?>">
+                        <input class="bibmet-input" type="text" name="RORid" value="<?php echo bibmet_h($rorid); ?>">
                     </label>
 
                     <label class="bibmet-field">
@@ -321,14 +294,14 @@ $columns = [
                         <select class="bibmet-select js-bibmet-select" name="Orgtyp_till">
                             <option value="">Ange organisationstyp</option>
                             <?php foreach ($organizationTypes as $organizationType) : ?>
-                                <option value="<?php echo h($organizationType); ?>"<?php echo selected_attr($organizationType, $orgtyp_till); ?>><?php echo h($organizationType); ?></option>
+                                <option value="<?php echo bibmet_h($organizationType); ?>"<?php echo bibmet_selected_attr($organizationType, $orgtyp_till); ?>><?php echo bibmet_h($organizationType); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </label>
 
                     <label class="bibmet-field">
                         <span class="bibmet-field__label">Kommentar</span>
-                        <input class="bibmet-input" type="text" name="Kommentar" value="<?php echo h($kommentar); ?>">
+                        <input class="bibmet-input" type="text" name="Kommentar" value="<?php echo bibmet_h($kommentar); ?>">
                     </label>
 
                     <label class="bibmet-field">
@@ -349,7 +322,7 @@ $columns = [
         <?php if ($errors) : ?>
             <div class="bibmet-alert" role="alert">
                 <?php foreach ($errors as $error) : ?>
-                    <p><?php echo h($error); ?></p>
+                    <p><?php echo bibmet_h($error); ?></p>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -359,10 +332,10 @@ $columns = [
                 <div>
                     <h2 class="bibmet-panel__title">Sökresultat</h2>
                     <p class="bibmet-muted">
-                        Visar <?php echo h($firstRow); ?>-<?php echo h($lastRow); ?> av <?php echo h($totalRows); ?> organisationsnamn.
+                        Visar <?php echo bibmet_h($firstRow); ?>-<?php echo bibmet_h($lastRow); ?> av <?php echo bibmet_h($totalRows); ?> organisationsnamn.
                     </p>
                 </div>
-                <p class="bibmet-page-pill">Sida <?php echo h($page); ?> av <?php echo h($totalPages); ?></p>
+                <p class="bibmet-page-pill">Sida <?php echo bibmet_h($page); ?> av <?php echo bibmet_h($totalPages); ?></p>
             </div>
 
             <div class="bibmet-table-scroll-top-wrap">
@@ -377,14 +350,14 @@ $columns = [
                         <tr>
                             <th class="bibmet-table__actions">Åtgärder</th>
                             <?php foreach ($columns as $label => $key) : ?>
-                                <th><?php echo h($label); ?></th>
+                                <th><?php echo bibmet_h($label); ?></th>
                             <?php endforeach; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!$rows) : ?>
                             <tr>
-                                <td colspan="<?php echo h(count($columns) + 1); ?>" class="bibmet-empty">
+                                <td colspan="<?php echo bibmet_h(count($columns) + 1); ?>" class="bibmet-empty">
                                     Inga organisationsnamn matchar sökningen.
                                 </td>
                             </tr>
@@ -395,13 +368,13 @@ $columns = [
                             <tr>
                                 <td class="bibmet-table__actions">
                                     <div class="bibmet-table__action-row">
-                                        <a href="visa_regler_unorgid.php?Unified_org_id=<?php echo h($orgId); ?>" class="bibmet-button bibmet-button--secondary bibmet-button--small">Visa regler</a>
-                                        <a href="aendra_organisation.php?Unified_org_id=<?php echo h($orgId); ?>" class="bibmet-button bibmet-button--primary bibmet-button--small">Ändra</a>
-                                        <a href="ta_bort_organisation.php?Unified_org_id=<?php echo h($orgId); ?>" class="bibmet-button bibmet-button--danger bibmet-button--small">Ta bort</a>
+                                        <a href="visa_regler_unorgid.php?Unified_org_id=<?php echo bibmet_h($orgId); ?>" class="bibmet-button bibmet-button--secondary bibmet-button--small">Visa regler</a>
+                                        <a href="aendra_organisation.php?Unified_org_id=<?php echo bibmet_h($orgId); ?>" class="bibmet-button bibmet-button--primary bibmet-button--small">Ändra</a>
+                                        <a href="ta_bort_organisation.php?Unified_org_id=<?php echo bibmet_h($orgId); ?>" class="bibmet-button bibmet-button--danger bibmet-button--small">Ta bort</a>
                                     </div>
                                 </td>
                                 <?php foreach ($columns as $key) : ?>
-                                    <td><?php echo h($row[$key] ?? ""); ?></td>
+                                    <td><?php echo bibmet_h($row[$key] ?? ""); ?></td>
                                 <?php endforeach; ?>
                             </tr>
                         <?php endforeach; ?>
@@ -409,39 +382,7 @@ $columns = [
                 </table>
             </div>
 
-            <?php if ($totalPages > 1) : ?>
-                <nav class="bibmet-pagination" aria-label="Sidnavigering">
-                    <a
-                        href="<?php echo h(build_page_url(max(1, $page - 1))); ?>"
-                        class="<?php echo $page <= 1 ? "bibmet-disabled " : ""; ?>bibmet-button bibmet-button--secondary"
-                        aria-disabled="<?php echo $page <= 1 ? "true" : "false"; ?>">
-                        Föregående
-                    </a>
-
-                    <div class="bibmet-page-list">
-                        <?php
-                        $startPage = max(1, $page - 2);
-                        $endPage = min($totalPages, $page + 2);
-                        for ($i = $startPage; $i <= $endPage; $i++) :
-                            $isCurrent = $i === $page;
-                        ?>
-                            <a
-                                href="<?php echo h(build_page_url($i)); ?>"
-                                class="bibmet-page-link<?php echo $isCurrent ? " bibmet-page-link--current" : ""; ?>"
-                                aria-current="<?php echo $isCurrent ? "page" : "false"; ?>">
-                                <?php echo h($i); ?>
-                            </a>
-                        <?php endfor; ?>
-                    </div>
-
-                    <a
-                        href="<?php echo h(build_page_url(min($totalPages, $page + 1))); ?>"
-                        class="<?php echo $page >= $totalPages ? "bibmet-disabled " : ""; ?>bibmet-button bibmet-button--primary"
-                        aria-disabled="<?php echo $page >= $totalPages ? "true" : "false"; ?>">
-                        Nästa
-                    </a>
-                </nav>
-            <?php endif; ?>
+            <?php bibmet_render_pagination($page, $totalPages); ?>
         </section>
     </main>
 </body>

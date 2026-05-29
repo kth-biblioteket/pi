@@ -1,32 +1,11 @@
 <?php
 require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
 $dbh = bibmet_sqlsrv_connect_or_redirect();
 
-function request_value($key, $default = "")
-{
-    return isset($_REQUEST[$key]) ? trim((string) $_REQUEST[$key]) : $default;
-}
-
-function h($value)
-{
-    if ($value instanceof DateTimeInterface) {
-        $value = $value->format("Y-m-d");
-    }
-
-    return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
-}
-
-function build_page_url($page)
-{
-    $params = $_REQUEST;
-    $params["page"] = $page;
-
-    return $_SERVER["PHP_SELF"] . "?" . http_build_query($params);
-}
-
-$u_org_id = request_value("Unified_org_id");
-$page = max(1, (int) request_value("page", "1"));
+$u_org_id = bibmet_request_value("Unified_org_id");
+$page = max(1, (int) bibmet_request_value("page", "1"));
 $pageSize = 50;
 $offset = ($page - 1) * $pageSize;
 $errors = [];
@@ -232,9 +211,9 @@ $lastRow = min($offset + $pageSize, $totalRows);
                     <p class="bibmet-eyebrow">Organisationsnamn</p>
                     <h1 class="bibmet-title">Visa regler organisationsnamn</h1>
                     <p class="bibmet-muted">
-                        Organisation: <?php echo h($u_org_id); ?>
+                        Organisation: <?php echo bibmet_h($u_org_id); ?>
                         <?php if ($organisationName !== "") : ?>
-                            — <?php echo h($organisationName); ?>
+                            — <?php echo bibmet_h($organisationName); ?>
                         <?php endif; ?>
                     </p>
                 </div>
@@ -245,7 +224,7 @@ $lastRow = min($offset + $pageSize, $totalRows);
         <?php if ($errors) : ?>
             <div class="bibmet-alert" role="alert">
                 <?php foreach ($errors as $error) : ?>
-                    <p><?php echo h($error); ?></p>
+                    <p><?php echo bibmet_h($error); ?></p>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -255,10 +234,10 @@ $lastRow = min($offset + $pageSize, $totalRows);
                 <div>
                     <h2 class="bibmet-panel__title">Regler</h2>
                     <p class="bibmet-muted">
-                        Visar <?php echo h($firstRow); ?>-<?php echo h($lastRow); ?> av <?php echo h($totalRows); ?> regler.
+                        Visar <?php echo bibmet_h($firstRow); ?>-<?php echo bibmet_h($lastRow); ?> av <?php echo bibmet_h($totalRows); ?> regler.
                     </p>
                 </div>
-                <p class="bibmet-page-pill">Sida <?php echo h($page); ?> av <?php echo h($totalPages); ?></p>
+                <p class="bibmet-page-pill">Sida <?php echo bibmet_h($page); ?> av <?php echo bibmet_h($totalPages); ?></p>
             </div>
 
             <div class="bibmet-table-scroll-top-wrap">
@@ -273,14 +252,14 @@ $lastRow = min($offset + $pageSize, $totalRows);
                         <tr>
                             <th class="bibmet-table__actions">Åtgärder</th>
                             <?php foreach ($columns as $label => $key) : ?>
-                                <th><?php echo h($label); ?></th>
+                                <th><?php echo bibmet_h($label); ?></th>
                             <?php endforeach; ?>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!$rows) : ?>
                             <tr>
-                                <td colspan="<?php echo h(count($columns) + 1); ?>" class="bibmet-empty">
+                                <td colspan="<?php echo bibmet_h(count($columns) + 1); ?>" class="bibmet-empty">
                                     Inga regler hittades för organisationsnamnet.
                                 </td>
                             </tr>
@@ -305,15 +284,15 @@ $lastRow = min($offset + $pageSize, $totalRows);
                                 <td class="bibmet-table__actions bibmet-table__actions--middle">
                                     <div class="bibmet-table__action-row">
                                         <?php if ($visaPage !== "") : ?>
-                                            <a href="<?php echo h($visaPage); ?>?Regelid=<?php echo h($regelId); ?>" class="bibmet-button bibmet-button--secondary bibmet-button--small">Visa</a>
+                                            <a href="<?php echo bibmet_h($visaPage); ?>?Regelid=<?php echo bibmet_h($regelId); ?>" class="bibmet-button bibmet-button--secondary bibmet-button--small">Visa</a>
                                         <?php endif; ?>
                                         <?php if ($andraPage !== "") : ?>
-                                            <a href="<?php echo h($andraPage); ?>?Regel_id=<?php echo h($regelId); ?>" class="bibmet-button bibmet-button--primary bibmet-button--small">Ändra</a>
+                                            <a href="<?php echo bibmet_h($andraPage); ?>?Regel_id=<?php echo bibmet_h($regelId); ?>" class="bibmet-button bibmet-button--primary bibmet-button--small">Ändra</a>
                                         <?php endif; ?>
                                     </div>
                                 </td>
                                 <?php foreach ($columns as $key) : ?>
-                                    <td><?php echo h($row[$key] ?? ""); ?></td>
+                                    <td><?php echo bibmet_h($row[$key] ?? ""); ?></td>
                                 <?php endforeach; ?>
                             </tr>
                         <?php endforeach; ?>
@@ -321,39 +300,7 @@ $lastRow = min($offset + $pageSize, $totalRows);
                 </table>
             </div>
 
-            <?php if ($totalPages > 1) : ?>
-                <nav class="bibmet-pagination" aria-label="Sidnavigering">
-                    <a
-                        href="<?php echo h(build_page_url(max(1, $page - 1))); ?>"
-                        class="<?php echo $page <= 1 ? "bibmet-disabled " : ""; ?>bibmet-button bibmet-button--secondary"
-                        aria-disabled="<?php echo $page <= 1 ? "true" : "false"; ?>">
-                        Föregående
-                    </a>
-
-                    <div class="bibmet-page-list">
-                        <?php
-                        $startPage = max(1, $page - 2);
-                        $endPage = min($totalPages, $page + 2);
-                        for ($i = $startPage; $i <= $endPage; $i++) :
-                            $isCurrent = $i === $page;
-                        ?>
-                            <a
-                                href="<?php echo h(build_page_url($i)); ?>"
-                                class="bibmet-page-link<?php echo $isCurrent ? " bibmet-page-link--current" : ""; ?>"
-                                aria-current="<?php echo $isCurrent ? "page" : "false"; ?>">
-                                <?php echo h($i); ?>
-                            </a>
-                        <?php endfor; ?>
-                    </div>
-
-                    <a
-                        href="<?php echo h(build_page_url(min($totalPages, $page + 1))); ?>"
-                        class="<?php echo $page >= $totalPages ? "bibmet-disabled " : ""; ?>bibmet-button bibmet-button--primary"
-                        aria-disabled="<?php echo $page >= $totalPages ? "true" : "false"; ?>">
-                        Nästa
-                    </a>
-                </nav>
-            <?php endif; ?>
+            <?php bibmet_render_pagination($page, $totalPages); ?>
         </section>
     </main>
 </body>
