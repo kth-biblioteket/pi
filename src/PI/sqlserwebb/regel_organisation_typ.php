@@ -107,7 +107,7 @@ try {
             </div>
         <?php endif; ?>
 
-        <form action="visa_regler_o_typ.php" method="post" class="bibmet-panel">
+        <form action="visa_regler_o_typ.php" method="get" class="bibmet-panel">
             <div class="bibmet-panel__header">
                 <h2 class="bibmet-panel__title">Sökurval</h2>
                 <p class="bibmet-muted">Ange ett eller flera fält för att hitta organisationstypsregler.</p>

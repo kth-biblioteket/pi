@@ -252,7 +252,7 @@ $columns = [
             </div>
         </section>
 
-        <form action="organisationsnamn.php" method="post">
+        <form action="organisationsnamn.php" method="get">
             <section class="bibmet-panel">
                 <div class="bibmet-panel__header">
                     <h2 class="bibmet-panel__title">Sökurval</h2>
