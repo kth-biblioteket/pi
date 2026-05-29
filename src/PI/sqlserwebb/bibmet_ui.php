@@ -1,10 +1,12 @@
 <?php
 
+// Read a request value from GET/POST, trim it, and fall back to a default.
 function bibmet_request_value($key, $default = "")
 {
     return isset($_REQUEST[$key]) ? trim((string) $_REQUEST[$key]) : $default;
 }
 
+// Escape a value for safe HTML output; DateTime values are shown as YYYY-MM-DD.
 function bibmet_h($value)
 {
     if ($value instanceof DateTimeInterface) {
@@ -14,11 +16,13 @@ function bibmet_h($value)
     return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
 }
 
+// Return the HTML selected attribute when a select option matches the current value.
 function bibmet_selected_attr($optionValue, $currentValue)
 {
     return (string) $optionValue === (string) $currentValue ? ' selected' : '';
 }
 
+// Build a pagination URL, preserving current filters while dropping reset/session params.
 function bibmet_page_url($page, array $extraParams = [])
 {
     $params = $_REQUEST;
@@ -32,6 +36,7 @@ function bibmet_page_url($page, array $extraParams = [])
     return $_SERVER["PHP_SELF"] . "?" . http_build_query($params);
 }
 
+// Bind an array of named SQL parameters to a PDO statement with basic int/string typing.
 function bibmet_bind_all(PDOStatement $stmt, array $params)
 {
     foreach ($params as $key => $value) {
@@ -39,6 +44,7 @@ function bibmet_bind_all(PDOStatement $stmt, array $params)
     }
 }
 
+// Render the standard Bibmet pagination controls; extra params preserve required page context.
 function bibmet_render_pagination($page, $totalPages, array $extraParams = [])
 {
     if ($totalPages <= 1) {

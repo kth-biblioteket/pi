@@ -1,16 +1,8 @@
 <?php
 require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
 $dbh = bibmet_sqlsrv_connect_or_redirect();
-
-function h($value)
-{
-    if ($value instanceof DateTimeInterface) {
-        $value = $value->format("Y-m-d");
-    }
-
-    return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
-}
 
 $u_org_id = isset($_SESSION['u_org_id']) ? $_SESSION['u_org_id'] : "";
 $_SESSION['u_org_id_ut'] = $u_org_id;
@@ -143,7 +135,7 @@ if (!$errors) {
             <section class="bibmet-panel">
                 <div class="bibmet-panel__body">
                     <?php foreach ($messages as $message) : ?>
-                        <p class="bibmet-muted"><?php echo h($message); ?></p>
+                        <p class="bibmet-muted"><?php echo bibmet_h($message); ?></p>
                     <?php endforeach; ?>
                 </div>
             </section>
@@ -152,7 +144,7 @@ if (!$errors) {
         <?php if ($errors) : ?>
             <div class="bibmet-alert" role="alert">
                 <?php foreach ($errors as $error) : ?>
-                    <p><?php echo h($error); ?></p>
+                    <p><?php echo bibmet_h($error); ?></p>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -165,37 +157,37 @@ if (!$errors) {
             <div class="bibmet-form-grid">
                 <label class="bibmet-field">
                     <span class="bibmet-field__label">Orgid</span>
-                    <input class="bibmet-input bibmet-input--short" type="text" value="<?php echo h($u_org_id); ?>" disabled>
+                    <input class="bibmet-input bibmet-input--short" type="text" value="<?php echo bibmet_h($u_org_id); ?>" disabled>
                 </label>
 
                 <label class="bibmet-field">
                     <span class="bibmet-field__label">Lokalt namn</span>
-                    <input class="bibmet-input" type="text" value="<?php echo h($namn_l_till); ?>" disabled>
+                    <input class="bibmet-input" type="text" value="<?php echo bibmet_h($namn_l_till); ?>" disabled>
                 </label>
 
                 <label class="bibmet-field">
                     <span class="bibmet-field__label">Engelskt namn</span>
-                    <input class="bibmet-input" type="text" value="<?php echo h($namn_e_till); ?>" disabled>
+                    <input class="bibmet-input" type="text" value="<?php echo bibmet_h($namn_e_till); ?>" disabled>
                 </label>
 
                 <label class="bibmet-field">
                     <span class="bibmet-field__label">Land</span>
-                    <input class="bibmet-input" type="text" value="<?php echo h($land_till ?? ""); ?>" disabled>
+                    <input class="bibmet-input" type="text" value="<?php echo bibmet_h($land_till ?? ""); ?>" disabled>
                 </label>
 
                 <label class="bibmet-field">
                     <span class="bibmet-field__label">Organisationstyp</span>
-                    <input class="bibmet-input" type="text" value="<?php echo h($orgtyp_till ?? ""); ?>" disabled>
+                    <input class="bibmet-input" type="text" value="<?php echo bibmet_h($orgtyp_till ?? ""); ?>" disabled>
                 </label>
 
                 <label class="bibmet-field">
                     <span class="bibmet-field__label">Kommentar</span>
-                    <input class="bibmet-input" type="text" value="<?php echo h($komm_till); ?>" disabled>
+                    <input class="bibmet-input" type="text" value="<?php echo bibmet_h($komm_till); ?>" disabled>
                 </label>
 
                 <label class="bibmet-field">
                     <span class="bibmet-field__label">ROR-id</span>
-                    <input class="bibmet-input" type="text" value="<?php echo h($rorid_sparad); ?>" disabled>
+                    <input class="bibmet-input" type="text" value="<?php echo bibmet_h($rorid_sparad); ?>" disabled>
                 </label>
             </div>
         </section>

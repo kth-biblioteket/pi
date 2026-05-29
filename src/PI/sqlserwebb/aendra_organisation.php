@@ -1,21 +1,8 @@
 <?php
 require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
 $dbh = bibmet_sqlsrv_connect_or_redirect();
-
-function h($value)
-{
-    if ($value instanceof DateTimeInterface) {
-        $value = $value->format("Y-m-d");
-    }
-
-    return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
-}
-
-function selected_attr($optionValue, $currentValue)
-{
-    return (string) $optionValue === (string) $currentValue ? ' selected' : '';
-}
 
 $errors = [];
 $u_org_id = isset($_GET["Unified_org_id"]) ? trim((string) $_GET["Unified_org_id"]) : "";
@@ -113,7 +100,7 @@ if (!ctype_digit($u_org_id) || (int) $u_org_id <= 0) {
         <?php if ($errors) : ?>
             <div class="bibmet-alert" role="alert">
                 <?php foreach ($errors as $error) : ?>
-                    <p><?php echo h($error); ?></p>
+                    <p><?php echo bibmet_h($error); ?></p>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -129,30 +116,30 @@ if (!ctype_digit($u_org_id) || (int) $u_org_id <= 0) {
                     <div class="bibmet-form-grid">
                         <label class="bibmet-field">
                             <span class="bibmet-field__label">Orgid</span>
-                            <input class="bibmet-input bibmet-input--short" type="text" value="<?php echo h($u_org_id); ?>" disabled>
+                            <input class="bibmet-input bibmet-input--short" type="text" value="<?php echo bibmet_h($u_org_id); ?>" disabled>
                         </label>
 
                         <label class="bibmet-field">
                             <span class="bibmet-field__label">Lokalt namn</span>
-                            <input type="hidden" name="Namn_lok_nu" value="<?php echo h($namn_lok); ?>">
-                            <input class="bibmet-input" type="text" name="Namn_lok_till" id="id_namn_lok" value="<?php echo h($namn_lok); ?>">
+                            <input type="hidden" name="Namn_lok_nu" value="<?php echo bibmet_h($namn_lok); ?>">
+                            <input class="bibmet-input" type="text" name="Namn_lok_till" id="id_namn_lok" value="<?php echo bibmet_h($namn_lok); ?>">
                             <span class="bibmet-field__hint">Nuvarande värde är förifyllt.</span>
                         </label>
 
                         <label class="bibmet-field">
                             <span class="bibmet-field__label">Engelskt namn</span>
-                            <input type="hidden" name="Namn_eng_nu" value="<?php echo h($namn_eng); ?>">
-                            <input class="bibmet-input" type="text" name="Namn_eng_till" id="id_namn_eng" value="<?php echo h($namn_eng); ?>">
+                            <input type="hidden" name="Namn_eng_nu" value="<?php echo bibmet_h($namn_eng); ?>">
+                            <input class="bibmet-input" type="text" name="Namn_eng_till" id="id_namn_eng" value="<?php echo bibmet_h($namn_eng); ?>">
                             <span class="bibmet-field__hint">Nuvarande värde är förifyllt.</span>
                         </label>
 
                         <label class="bibmet-field">
                             <span class="bibmet-field__label">Land</span>
-                            <input type="hidden" name="Land_nu" value="<?php echo h($land); ?>">
+                            <input type="hidden" name="Land_nu" value="<?php echo bibmet_h($land); ?>">
                             <select class="bibmet-select js-bibmet-select" id="id_s_land" name="Land_till">
                                 <option value="">Ange land</option>
                                 <?php foreach ($countries as $country) : ?>
-                                    <option value="<?php echo h($country); ?>"<?php echo selected_attr($country, $land); ?>><?php echo h($country); ?></option>
+                                    <option value="<?php echo bibmet_h($country); ?>"<?php echo bibmet_selected_attr($country, $land); ?>><?php echo bibmet_h($country); ?></option>
                                 <?php endforeach; ?>
                             </select>
                             <span class="bibmet-field__hint">Nuvarande land är förvalt.</span>
@@ -160,11 +147,11 @@ if (!ctype_digit($u_org_id) || (int) $u_org_id <= 0) {
 
                         <label class="bibmet-field">
                             <span class="bibmet-field__label">Organisationstyp</span>
-                            <input type="hidden" name="Orgtyp_nu" value="<?php echo h($org_typ_eng); ?>">
+                            <input type="hidden" name="Orgtyp_nu" value="<?php echo bibmet_h($org_typ_eng); ?>">
                             <select class="bibmet-select js-bibmet-select" id="id_orgtyp" name="Orgtyp_till">
                                 <option value="">Ange organisationstyp</option>
                                 <?php foreach ($organizationTypes as $organizationType) : ?>
-                                    <option value="<?php echo h($organizationType); ?>"<?php echo selected_attr($organizationType, $org_typ_eng); ?>><?php echo h($organizationType); ?></option>
+                                    <option value="<?php echo bibmet_h($organizationType); ?>"<?php echo bibmet_selected_attr($organizationType, $org_typ_eng); ?>><?php echo bibmet_h($organizationType); ?></option>
                                 <?php endforeach; ?>
                             </select>
                             <span class="bibmet-field__hint">Nuvarande organisationstyp är förvald.</span>
@@ -172,15 +159,15 @@ if (!ctype_digit($u_org_id) || (int) $u_org_id <= 0) {
 
                         <label class="bibmet-field">
                             <span class="bibmet-field__label">Kommentar</span>
-                            <input type="hidden" name="Komm_nu" value="<?php echo h($komm); ?>">
-                            <input class="bibmet-input" type="text" name="Komm_till" id="id_komm" value="<?php echo h($komm); ?>">
+                            <input type="hidden" name="Komm_nu" value="<?php echo bibmet_h($komm); ?>">
+                            <input class="bibmet-input" type="text" name="Komm_till" id="id_komm" value="<?php echo bibmet_h($komm); ?>">
                             <span class="bibmet-field__hint">Nuvarande värde är förifyllt.</span>
                         </label>
 
                         <label class="bibmet-field">
                             <span class="bibmet-field__label">ROR-id</span>
-                            <input type="hidden" name="RORid_nu" value="<?php echo h($rorid); ?>">
-                            <input class="bibmet-input" type="text" name="RORid_till" id="id_rorid" value="<?php echo h($rorid); ?>">
+                            <input type="hidden" name="RORid_nu" value="<?php echo bibmet_h($rorid); ?>">
+                            <input class="bibmet-input" type="text" name="RORid_till" id="id_rorid" value="<?php echo bibmet_h($rorid); ?>">
                             <span class="bibmet-field__hint">Nuvarande värde är förifyllt.</span>
                         </label>
                     </div>

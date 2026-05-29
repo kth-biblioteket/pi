@@ -1,12 +1,8 @@
 <?php
 require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
 $dbh = bibmet_sqlsrv_connect_or_redirect();
-
-function h($value)
-{
-    return htmlspecialchars((string) $value, ENT_QUOTES, "UTF-8");
-}
 
 $errors = [];
 $countryOptions = "";
@@ -15,7 +11,7 @@ try {
     $stmt = $dbh->query("SELECT Display_name FROM country ORDER BY Display_name");
 
     foreach ($stmt as $row) {
-        $displayName = h($row["Display_name"]);
+        $displayName = bibmet_h($row["Display_name"]);
         $countryOptions .= "\n<option value=\"{$displayName}\">{$displayName}</option>";
     }
 } catch (PDOException $e) {
@@ -112,7 +108,7 @@ try {
         <?php if ($errors) : ?>
             <div class="bibmet-alert" role="alert">
                 <?php foreach ($errors as $error) : ?>
-                    <p><?php echo h($error); ?></p>
+                    <p><?php echo bibmet_h($error); ?></p>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
