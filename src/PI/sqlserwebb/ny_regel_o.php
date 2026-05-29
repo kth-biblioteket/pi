@@ -112,21 +112,40 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
     function insert_org_rule(PDO $dbh, array $data)
     {
-        $sql = "INSERT INTO Rule_org_match (
-            Find_country, Country_code, Find_city, Find_org, Divide,
-            Country_1, City_1, Org_id_1,
-            Country_2, City_2, Org_id_2,
-            Country_3, City_3, Org_id_3,
-            User_id, Rule_date, Run_status, Valid_from, Valid_to
-        ) VALUES (
-            :Find_country, :Country_code, :Find_city, :Find_org, :Divide,
-            :Country_1, :City_1, :Org_id_1,
-            :Country_2, :City_2, :Org_id_2,
-            :Country_3, :City_3, :Org_id_3,
-            :User_id, CURRENT_TIMESTAMP, 1, :Valid_from, :Valid_to
-        )";
+        $isSqlite = $dbh->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
+        $sql = $isSqlite
+            ? "INSERT INTO Rule_org_match (
+                R_o_m_id, Find_country, Country_code, Find_city, Find_org, Divide,
+                Country_1, City_1, Org_id_1,
+                Country_2, City_2, Org_id_2,
+                Country_3, City_3, Org_id_3,
+                User_id, Rule_date, Run_status, Valid_from, Valid_to
+            ) VALUES (
+                :R_o_m_id, :Find_country, :Country_code, :Find_city, :Find_org, :Divide,
+                :Country_1, :City_1, :Org_id_1,
+                :Country_2, :City_2, :Org_id_2,
+                :Country_3, :City_3, :Org_id_3,
+                :User_id, CURRENT_TIMESTAMP, 1, :Valid_from, :Valid_to
+            )"
+            : "INSERT INTO Rule_org_match (
+                Find_country, Country_code, Find_city, Find_org, Divide,
+                Country_1, City_1, Org_id_1,
+                Country_2, City_2, Org_id_2,
+                Country_3, City_3, Org_id_3,
+                User_id, Rule_date, Run_status, Valid_from, Valid_to
+            ) VALUES (
+                :Find_country, :Country_code, :Find_city, :Find_org, :Divide,
+                :Country_1, :City_1, :Org_id_1,
+                :Country_2, :City_2, :Org_id_2,
+                :Country_3, :City_3, :Org_id_3,
+                :User_id, CURRENT_TIMESTAMP, 1, :Valid_from, :Valid_to
+            )";
 
         $stmt = $dbh->prepare($sql);
+        if ($isSqlite) {
+            $idStmt = $dbh->query("SELECT COALESCE(MAX(R_o_m_id), 0) + 1 FROM Rule_org_match");
+            $stmt->bindValue(':R_o_m_id', (int) $idStmt->fetchColumn(), PDO::PARAM_INT);
+        }
         $stmt->bindValue(':Find_country', $data['Find_country'], PDO::PARAM_STR);
         $stmt->bindValue(':Country_code', $data['Country_code'], PDO::PARAM_STR);
         bind_nullable($stmt, ':Find_city', $data['Find_city']);

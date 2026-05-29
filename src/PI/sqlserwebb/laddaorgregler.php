@@ -1,341 +1,313 @@
 <?php
 require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
 $dbh = bibmet_sqlsrv_connect_or_redirect();
+
+$errors = [];
+$messages = [];
+$invalidRows = [];
+$importedRows = 0;
+$invalidRowCount = 0;
+$runStatus = 99;
+$maxUploadSize = 500000;
+
+function bibmet_current_date(PDO $dbh)
+{
+    return $dbh->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite' ? date('Y-m-d') : null;
+}
+
+if (isset($_POST['ladda'])) {
+    if (!isset($_FILES['fileToUpload']) || $_FILES['fileToUpload']['error'] !== UPLOAD_ERR_OK) {
+        $errors[] = "Välj en csv-fil att ladda upp.";
+    } else {
+        $originalName = basename($_FILES['fileToUpload']['name']);
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+
+        if ($extension !== 'csv') {
+            $errors[] = "Enbart csv-filer tillåts.";
+        }
+
+        if ($_FILES['fileToUpload']['size'] > $maxUploadSize) {
+            $errors[] = "Filen är för stor. Maxstorlek är 500 kB.";
+        }
+
+        if (strpos($originalName, ' ') !== false) {
+            $errors[] = "Filnamnet får inte innehålla blanktecken.";
+        }
+
+        if (!$errors) {
+            $tmpFile = $_FILES['fileToUpload']['tmp_name'];
+            $rows = [];
+
+            if (($handle = fopen($tmpFile, 'r')) === false) {
+                $errors[] = "Filen går inte att öppna.";
+            } else {
+                while (($line = fgetcsv($handle, 1000, ';')) !== false) {
+                    $rows[] = $line;
+                }
+                fclose($handle);
+            }
+
+            if (!$errors) {
+                if (!$rows) {
+                    $errors[] = "Filen är tom.";
+                } elseif (count($rows[0]) !== 8) {
+                    $errors[] = "Filen har inte rätt antal kolumner. Den ska ha 8 semikolonseparerade kolumner.";
+                } else {
+                    $dataRows = $rows;
+                    if (isset($dataRows[0][3]) && !is_numeric($dataRows[0][3])) {
+                        array_shift($dataRows);
+                    }
+
+                    if (!$dataRows) {
+                        $errors[] = "Filen innehåller inga datarader.";
+                    } else {
+                        try {
+                            $dateValue = bibmet_current_date($dbh);
+                            if ($dateValue === null) {
+                                $dateStmt = $dbh->query("SELECT FORMAT (getdate(), 'yyyy-MM-dd') AS Datum");
+                                $dateValue = (string) $dateStmt->fetchColumn();
+                            }
+
+                            $first = $dataRows[0];
+                            $duplicateStmt = $dbh->prepare("SELECT COUNT(*) AS antal
+                                FROM Rule_org_match
+                                WHERE Find_org = :Find_org
+                                    AND Find_country = :Find_country
+                                    AND User_id = :User_id
+                                    AND Rule_date = :Rule_date
+                                    AND Divide = :Divide
+                                    AND Org_id_1 = :Org_id_1");
+                            $duplicateStmt->bindValue(':Find_org', $first[0], PDO::PARAM_STR);
+                            $duplicateStmt->bindValue(':Find_country', $first[1], PDO::PARAM_STR);
+                            $duplicateStmt->bindValue(':User_id', $first[7], PDO::PARAM_STR);
+                            $duplicateStmt->bindValue(':Rule_date', $dateValue, PDO::PARAM_STR);
+                            $duplicateStmt->bindValue(':Divide', (int) $first[3], PDO::PARAM_INT);
+                            $duplicateStmt->bindValue(':Org_id_1', (int) $first[4], PDO::PARAM_INT);
+                            $duplicateStmt->execute();
+
+                            if ((int) $duplicateStmt->fetchColumn() > 0) {
+                                $errors[] = "Filen har redan lästs in.";
+                            } else {
+                                $isSqlite = $dbh->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
+                                $insertSql = $isSqlite
+                                    ? "INSERT INTO Rule_org_match
+                                        (R_o_m_id, Find_country, Country_code, Find_org, Divide, Org_id_1, Org_id_2, Org_id_3, Rule_date, User_id, Run_status)
+                                        VALUES
+                                        (:R_o_m_id, :Find_country, :Country_code, :Find_org, :Divide, :Org_id_1, :Org_id_2, :Org_id_3, :Rule_date, :User_id, :Run_status)"
+                                    : "INSERT INTO Rule_org_match
+                                        (Find_country, Country_code, Find_org, Divide, Org_id_1, Org_id_2, Org_id_3, Rule_date, User_id, Run_status)
+                                        VALUES
+                                        (:Find_country, :Country_code, :Find_org, :Divide, :Org_id_1, :Org_id_2, :Org_id_3, :Rule_date, :User_id, :Run_status)";
+                                $insertStmt = $dbh->prepare($insertSql);
+
+                                $dbh->beginTransaction();
+                                $nextRuleId = null;
+                                if ($isSqlite) {
+                                    $idStmt = $dbh->query("SELECT COALESCE(MAX(R_o_m_id), 0) + 1 FROM Rule_org_match");
+                                    $nextRuleId = (int) $idStmt->fetchColumn();
+                                }
+
+                                foreach ($dataRows as $index => $line) {
+                                    $rowNumber = $index + 1;
+                                    $line = array_pad($line, 8, '');
+                                    $divide = trim((string) $line[3]);
+                                    $orgId1 = trim((string) $line[4]);
+                                    $orgId2 = trim((string) $line[5]);
+                                    $orgId3 = trim((string) $line[6]);
+                                    $invalid = false;
+
+                                    if (!in_array($divide, ['1', '2', '3'], true) || !ctype_digit($orgId1)) {
+                                        $invalid = true;
+                                    }
+                                    if ($divide === '2' && !ctype_digit($orgId2)) {
+                                        $invalid = true;
+                                    }
+                                    if ($divide === '3' && (!ctype_digit($orgId2) || !ctype_digit($orgId3))) {
+                                        $invalid = true;
+                                    }
+
+                                    if ($invalid) {
+                                        $invalidRowCount++;
+                                        $invalidRows[] = ['row' => $rowNumber, 'data' => $line];
+                                        continue;
+                                    }
+
+                                    if ($isSqlite) {
+                                        $insertStmt->bindValue(':R_o_m_id', $nextRuleId, PDO::PARAM_INT);
+                                        $nextRuleId++;
+                                    }
+                                    $insertStmt->bindValue(':Find_country', $line[1], PDO::PARAM_STR);
+                                    $insertStmt->bindValue(':Country_code', $line[2], PDO::PARAM_STR);
+                                    $insertStmt->bindValue(':Find_org', $line[0], PDO::PARAM_STR);
+                                    $insertStmt->bindValue(':Divide', (int) $divide, PDO::PARAM_INT);
+                                    $insertStmt->bindValue(':Org_id_1', (int) $orgId1, PDO::PARAM_INT);
+                                    $insertStmt->bindValue(':Org_id_2', $divide === '1' ? null : (int) $orgId2, $divide === '1' ? PDO::PARAM_NULL : PDO::PARAM_INT);
+                                    $insertStmt->bindValue(':Org_id_3', $divide === '3' ? (int) $orgId3 : null, $divide === '3' ? PDO::PARAM_INT : PDO::PARAM_NULL);
+                                    $insertStmt->bindValue(':Rule_date', $dateValue, PDO::PARAM_STR);
+                                    $insertStmt->bindValue(':User_id', $line[7], PDO::PARAM_STR);
+                                    $insertStmt->bindValue(':Run_status', $runStatus, PDO::PARAM_INT);
+                                    $insertStmt->execute();
+                                    $importedRows++;
+                                }
+
+                                $dbh->commit();
+                                $messages[] = "Filen är inläst.";
+                                $messages[] = "Antal inlästa poster: " . $importedRows . ".";
+                                $messages[] = "Antal felaktiga ej inlästa poster: " . $invalidRowCount . ".";
+                            }
+                        } catch (PDOException $e) {
+                            if ($dbh->inTransaction()) {
+                                $dbh->rollBack();
+                            }
+                            $errors[] = "Det gick inte att läsa in filen. " . $e->getMessage();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+$invalidColumns = [
+    "Rad",
+    "Sökt organisation",
+    "Landsnamn",
+    "Landskod",
+    "Delas",
+    "Org-id 1",
+    "Org-id 2",
+    "Org-id 3",
+    "Användarnamn",
+];
 ?>
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
+<!DOCTYPE html>
+<html lang="sv">
 
 <! Författare: Cecilia Wiklander>
 <! Syfte: Adressrättnings-hantering>
 <! Ändringar: >
 
 <head>
-
     <meta charset="utf-8">
-
-    <title>LADDA REGLER - ORGANISATION</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ladda regler organisation</title>
     <link href="Site.css" rel="stylesheet">
-
+    <?php include("include_bibmet_kth.html"); ?>
 </head>
 
-<body>
-
-<?php include('include_head_new.html'); ?>
-
-<h2>LADDA REGLER - ORGANISATION</h2>
-
-</br>
-</br>
-
-<?php
-
-if (isset($_POST['ladda'])) {
-
-    $username = $_SESSION['anv'];
-    $password = $_SESSION['ord'];
-    $hostname = $_SESSION['hnamn'];
-    $dbname = "BIBSTAT";
-
-    $target_dir = "DATAFILER/";
-    $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
-    $imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
-    $uploadOk = 1;
-
-    // Kontrollera filtyp
-    if($imageFileType != "csv" ) {
-           echo "Tyvärr, enbart csv-filer tillåts";
-           $uploadOk = 0;
-    }
-    else {
-          // Kontrollera om filen redan finns
-          if (file_exists($target_file)) {
-              echo "Tyvärr, filen finns redan";
-              $uploadOk = 0;
-          }
-          else {
-                // Kontrollera filstorlek
-                if ($_FILES["fileToUpload"]["size"] > 500000) {
-                    echo "Tyvärr, filen är för stor.";
-                    $uploadOk = 0;
-                }
-                else {
-                      if (strpos($target_file, ' ') !== false) {
-                         echo "Tyvärr, filnamnet får inte innehålla blanktecken.";
-                         $uploadOk = 0;
-                      }
-                      else {
-
-                            if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-                                 echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
-                            }
-                            else {
-                                    echo "Tyvärr, filen gick inte att ladda upp.";
-                                   $uploadOk = 0;
-                            }
-                    }
-                }
-          }
-    }
-
-    if ($uploadOk == 1) { // Riktigt filnamn
-
-       $filnamnet = $target_file;
-       $filnamnet = str_replace(' ', '', $filnamnet);
-
-       $felantal = false;
-       $importstatus = 99;
-       // Kontrollera antal kolumner i filen och om inläsning redan har gjorts
-       $fh_in = fopen($filnamnet,'r');
-       if ($fh_in) {
-
-          $sql = "SELECT FORMAT (getdate(), 'yyyy-MM-dd') AS Datum";
-          try {
-              $stmt = $dbh->query( $sql );
-          } catch (Exception $e) {
-              echo 'Caught exception: ',  $e->getMessage(), "\n";
-          }
-
-          foreach ($stmt as $row) {
-            $Datum = $row['Datum'];
-          }
-
-          if ($linearr = fgetcsv($fh_in,1000,";")) {
-
-             $num = count($linearr);
-             if ($num != 8) {
-                echo "<script>alert('Filen har inte rätt antal kolumner!');</script>";
-                $felantal = true;
-             } else {
-
-                  if ($linearr = fgetcsv($fh_in,1000,";")) {
-                     $stmt_k = $dbh->prepare("SELECT COUNT(*) AS antal FROM Rule_org_match WHERE Find_org = :Find_org AND Find_country = :Find_country AND User_id = :User_id AND Rule_date = :Rule_date AND Divide = :Divide AND Org_id_1 = :Org_id_1");
-                     $stmt_k->bindParam(':Find_org', $linearr[0]);
-                     $stmt_k->bindParam(':Find_country', $linearr[1]);
-                     $stmt_k->bindParam(':Divide', $linearr[3]);
-                     $stmt_k->bindParam(':Org_id_1', $linearr[4]);
-                     $stmt_k->bindParam(':Rule_date', $Datum);
-                     $stmt_k->bindParam(':User_id', $linearr[7]);
-                     try {
-                          $stmt_k->execute();
-                         } catch (Exception $e) {
-                           echo 'Caught exception: ',  $e->getMessage(), "\n";
-                         }
-
-                     foreach ($stmt_k as $row) {
-                         $Antal = $row['antal'];
-
-                     }
-
-                }
-             }
-
-          }
-
-          fclose($fh_in);
-
-       }
-
-       if ($Antal > 0) {
-          echo "<script>alert('Filen har redan lästs in!');</script>";
-       } else {
-
-       $fh_in = fopen($filnamnet,'r');
-
-       if ($fh_in and !$felantal) { // Filen gick att öppna
-
-          $stmt_f_1 = $dbh->prepare("INSERT INTO Rule_org_match (Find_country,Country_code,Find_org,Divide,Org_id_1,Rule_date,User_id,Run_status) VALUES    (:Find_country,:Country_code,:Find_org,:Divide,:Org_id_1,:Rule_date,:User_id,:Run_status)");
-
-          $stmt_f_2 = $dbh->prepare("INSERT INTO Rule_org_match (Find_country,Country_code,Find_org,Divide,Org_id_1,Org_id_2,Rule_date,User_id,Run_status) VALUES    (:Find_country,:Country_code,:Find_org,:Divide,:Org_id_1,:Org_id_2,:Rule_date,:User_id,:Run_status)");
-
-          $stmt_f_3 = $dbh->prepare("INSERT INTO Rule_org_match (Find_country,Country_code,Find_org,Divide,Org_id_1,Org_id_2,Org_id_3,Rule_date,User_id,Run_status) VALUES    (:Find_country,:Country_code,:Find_org,:Divide,:Org_id_1,:Org_id_2,:Org_id_3,:Rule_date,:User_id,:Run_status)");
-
-          $rad = 0;
-          $antalposter = 0;
-          $antalfelposter = 0;
-          $rubrikskriven = false;
-
-          while ($linearr = fgetcsv($fh_in,1000,";")) {
-
-            $felrad = false;
-            $rad++;
-
-            if (is_numeric($linearr[3]) and is_numeric($linearr[4])) { // Splittringsvärdet och nytt org-id
-               if ($linearr[3] == 2 and (!is_numeric($linearr[5]))) { // Felaktig rad saknas org_id för två org att ändra till
-
-                 $felrad = true;
-               }
-               if ($linearr[3] > 2 and (!is_numeric($linearr[5])) and (!is_numeric($linearr[6]))) { // Felaktig rad saknas org_id för tre org att ändra till
-                 $felrad = true;
-
-               }
-
-               if (!$felrad) { // Riktig post
-
-                  $antalposter++;
-
-                  if ($linearr[3] == 1) {
-                     $stmt_f_1->bindParam(':Find_country', $linearr[1]);
-                     $stmt_f_1->bindParam(':Country_code', $linearr[2]);
-                     $stmt_f_1->bindParam(':Find_org', $linearr[0]);
-                     $stmt_f_1->bindParam(':Divide', $linearr[3]);
-                     $stmt_f_1->bindParam(':Org_id_1', $linearr[4]);
-                     $stmt_f_1->bindParam(':Rule_date', $Datum);
-                     $stmt_f_1->bindParam(':User_id', $linearr[7]);
-                     $stmt_f_1->bindParam(':Run_status', $importstatus);
-                  }
-                  if ($linearr[3] == 2) {
-                     $stmt_f_2->bindParam(':Find_country', $linearr[1]);
-                     $stmt_f_2->bindParam(':Country_code', $linearr[2]);
-                     $stmt_f_2->bindParam(':Find_org', $linearr[0]);
-                     $stmt_f_2->bindParam(':Divide', $linearr[3]);
-                     $stmt_f_2->bindParam(':Org_id_1', $linearr[4]);
-                     $stmt_f_2->bindParam(':Org_id_2', $linearr[5]);
-                     $stmt_f_2->bindParam(':Rule_date', $Datum);
-                     $stmt_f_2->bindParam(':User_id', $linearr[7]);
-                     $stmt_f_2->bindParam(':Run_status', $importstatus);
-                  }
-                  if ($linearr[3] == 3) {
-                     $stmt_f_3->bindParam(':Find_country', $linearr[1]);
-                     $stmt_f_3->bindParam(':Country_code', $linearr[2]);
-                     $stmt_f_3->bindParam(':Find_org', $linearr[0]);
-                     $stmt_f_3->bindParam(':Divide', $linearr[3]);
-                     $stmt_f_3->bindParam(':Org_id_1', $linearr[4]);
-                     $stmt_f_3->bindParam(':Org_id_2', $linearr[5]);
-                     $stmt_f_3->bindParam(':Org_id_3', $linearr[6]);
-                     $stmt_f_3->bindParam(':Rule_date', $Datum);
-                     $stmt_f_3->bindParam(':User_id', $linearr[7]);
-                     $stmt_f_3->bindParam(':Run_status', $importstatus);
-                  }
-
-                  try {
-
-                      if ($linearr[3] == 1) {
-                         $stmt_f_1->execute();
-                      } elseif ($linearr[3] == 2) {
-                         $stmt_f_2->execute();
-                      } else {
-                         $stmt_f_3->execute();
-                      }
-
-                  } catch (Exception $e) {
-                    echo 'Caught exception: ',  $e->getMessage(), "\n";
-                  }
-               }
-
-            } else { // Rubrikrad eller felaktig post
-                 if ($rad != 1) { // Ej rubrikrad, felaktig rad
-                    $felrad = true;
-                 }
-            }
-
-            if ($felrad) {
-               if (!$rubrikskriven) {
-              // Rubrikerna
-              echo "<table border='1'>";
-             echo "<tr>";
-             echo "<b><th>FELAKTIGA POSTER - EJ INLÄSTA</th></h3></b></br></br>";
-             echo "</tr>";
-             echo "<tr>";
-             echo "<th>Sökt organisation</th> <th>Landsnamn</th><th>Landskod</th> <th>Delas</th> <th>Org-id 1</th> <th>Org-id 2</th>
-                  <th>Org-id 3</th><th>Användarnamn</th>";
-             echo "</tr></br>";
-             $rubrikskriven = true;
-               }
-               if ($rad != 1) {
-               $antalfelposter++;
-               echo "<tr>";
-               echo "<td style = 'white-space:PRE'>" . $linearr[0] . "</td>";
-               echo "<td style = 'white-space:PRE'>" . $linearr[1] . "</td>";
-               echo "<td style = 'white-space:PRE'>" . $linearr[2] . "</td>";
-               echo "<td style = 'white-space:PRE'>" . $linearr[3] . "</td>";
-               echo "<td style = 'white-space:PRE'>" . $linearr[4] . "</td>";
-               echo "<td style = 'white-space:PRE'>" . $linearr[5] . "</td>";
-               echo "<td style = 'white-space:PRE'>" . $linearr[6] . "</td>";
-               echo "<td style = 'white-space:PRE'>" . $linearr[7] . "</td>";
-               echo "</tr>";
-               }
-            }
-         }
-
-         if ($rubrikskriven) {
-       echo "</table>";
-       echo "<br /><br /><br />";
-         }
-
-         fclose($fh_in);
-
-         echo "<script>alert('Filen är inläst!');</script>";
-
-         echo "<tr>";
-         echo "<b><th>ANTAL INLÄSTA POSTER: </th><th>$antalposter</th></h3>";
-    echo "</tr></b></br></br>";
-
-         echo "<tr>";
-         echo "<b><th>ANTAL FELAKTIGA EJ INLÄSTA POSTER: </th><th>$antalfelposter</th></h3>";
-    echo "</tr></b></br></br>";
-
-    echo "Regler inlästa via uppladdade filer får värdet 99 i kolumnen Run_status i tabellen Rule_org_match";
-
-       } else { // Filen gick inte att öppna
-          if ($felantal){
-             echo "<script>alert('Filen går inte att ladda!');</script>";
-          }
-          else {
-             echo "<script>alert('Filen går inte att öppna!');</script>";
-          }
-       }
-
-     }
-
-
-    } else { // Felaktigt filnamn
-
-      echo "<script>alert('Det går inte att ladda filen!');</script>";
-
-    } // felifilen
-
-} // ladda
-
-?>
-
-<form action="laddaorgregler.php" method="post" enctype="multipart/form-data">
-
-Välj fil att ladda upp:
-<input type="file" name="fileToUpload" id="fileToUpload">
-<input type="submit" value="Ladda upp" name="ladda" style="background-color:#0fb821">
-<br /><br />
-
-<h2>Filen måste vara av typen csv</h2>
-
-- behöver inte ha kolumnrubriker<br />
-- måste vara semikolonseparerad
-
-<h3>Filutseende, ordningsföljd:</h3>
-1) Organisationsamn att söka på
-<br />
-2) Landsnamn
-<br />
-3) Landskod
-<br />
-4) Splittringsvärde (1-3)
-<br />
-5) Organisationsid 1
-<br />
-6) Organisationsid 2
-<br />
-7) Organisationsid 3
-<br />
-8) Användarnamn
-<br />
-
-<br /> <br /> <br />
-
-</form>
-
-<a href='adressmeny.php'>TILL MENYN</a>
-
+<body class="bibmet-body">
+    <?php include('include_head_new.html'); ?>
+
+    <main class="bibmet-main">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Adressrättningsregler</p>
+                    <h1 class="bibmet-title">Ladda regler organisation</h1>
+                    <p class="bibmet-muted">Ladda upp en semikolonseparerad csv-fil med organisationsregler.</p>
+                </div>
+                <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
+            </div>
+        </section>
+
+        <?php if ($errors) : ?>
+            <div class="bibmet-alert" role="alert">
+                <?php foreach ($errors as $error) : ?>
+                    <p><?php echo bibmet_h($error); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($messages) : ?>
+            <div class="bibmet-alert bibmet-alert--success" role="status">
+                <?php foreach ($messages as $message) : ?>
+                    <p><?php echo bibmet_h($message); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <form action="laddaorgregler.php" method="post" enctype="multipart/form-data" class="bibmet-panel">
+            <div class="bibmet-panel__header">
+                <h2 class="bibmet-panel__title">Välj fil</h2>
+            </div>
+
+            <div class="bibmet-form-grid bibmet-form-grid--narrow">
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Csv-fil</span>
+                    <input class="bibmet-input" type="file" name="fileToUpload" id="fileToUpload" accept=".csv,text/csv" required>
+                    <span class="bibmet-field__hint">Max 500 kB. Filnamnet får inte innehålla blanktecken.</span>
+                </label>
+            </div>
+
+            <div class="bibmet-form-actions">
+                <div class="bibmet-action-group">
+                    <input type="submit" value="Ladda upp" name="ladda" class="bibmet-button bibmet-button--primary">
+                </div>
+            </div>
+        </form>
+
+        <section class="bibmet-panel">
+            <div class="bibmet-panel__header">
+                <h2 class="bibmet-panel__title">Filformat</h2>
+            </div>
+            <div class="bibmet-panel__body">
+                <p class="bibmet-muted">Filen måste vara en semikolonseparerad csv-fil. Kolumnrubriker är valfria.</p>
+                <ol>
+                    <li>Organisationsnamn att söka på</li>
+                    <li>Landsnamn</li>
+                    <li>Landskod</li>
+                    <li>Splittringsvärde (1-3)</li>
+                    <li>Organisationsid 1</li>
+                    <li>Organisationsid 2</li>
+                    <li>Organisationsid 3</li>
+                    <li>Användarnamn</li>
+                </ol>
+                <p class="bibmet-muted">Regler inlästa via uppladdade filer får värdet 99 i kolumnen Run_status i tabellen Rule_org_match.</p>
+            </div>
+        </section>
+
+        <?php if ($invalidRows) : ?>
+            <section class="bibmet-panel">
+                <div class="bibmet-result-header">
+                    <div>
+                        <h2 class="bibmet-panel__title">Felaktiga poster – ej inlästa</h2>
+                        <p class="bibmet-muted">Visar rader som inte kunde importeras.</p>
+                    </div>
+                </div>
+
+                <div class="bibmet-table-scroll-top-wrap">
+                    <div id="rules-scroll-top" class="bibmet-scrollbar bibmet-scroll-top">
+                        <div id="rules-scroll-spacer" class="bibmet-scroll-spacer"></div>
+                    </div>
+                </div>
+
+                <div id="rules-table-scroll" class="bibmet-scrollbar bibmet-table-wrap">
+                    <table id="rules-table" class="bibmet-table">
+                        <thead>
+                            <tr>
+                                <?php foreach ($invalidColumns as $column) : ?>
+                                    <th><?php echo bibmet_h($column); ?></th>
+                                <?php endforeach; ?>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($invalidRows as $invalidRow) : ?>
+                                <tr>
+                                    <td><?php echo bibmet_h($invalidRow['row']); ?></td>
+                                    <?php foreach ($invalidRow['data'] as $cell) : ?>
+                                        <td><?php echo bibmet_h($cell); ?></td>
+                                    <?php endforeach; ?>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        <?php endif; ?>
+    </main>
 </body>
+
 </html>
