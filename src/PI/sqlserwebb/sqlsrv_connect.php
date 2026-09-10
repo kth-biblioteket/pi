@@ -1,5 +1,17 @@
 <?php
 
+function bibmet_mssql_host()
+{
+    $host = getenv('MSSQL_HOST') ?: 'bibmet01.ug.kth.se';
+    $trustServerCertificate = getenv('MSSQL_TRUST_SERVER_CERTIFICATE') ?: 'true';
+
+    if (strtolower($trustServerCertificate) === 'true') {
+        $host .= ';TrustServerCertificate=true';
+    }
+
+    return $host;
+}
+
 function bibmet_login_url($reason = "")
 {
     $url = '/PI/sqlserwebb/loggain.php';

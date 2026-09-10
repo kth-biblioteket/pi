@@ -1,4 +1,8 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+session_start();
+?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
@@ -50,8 +54,7 @@ function validateForm() {
         try {
             $username = $anv;
             $password = $ord;
-            //$hostname = "bibmet.ug.kth.se";
-            $hostname = "bibmet01.ug.kth.se";
+            $hostname = bibmet_mssql_host();
             $dbname = "BIBSTAT";
             $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
             $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);

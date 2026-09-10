@@ -46,15 +46,6 @@ RUN sed -i -e 's/upload_max_filesize = 2M/upload_max_filesize = 20M/g' $PHP_INI_
 
 COPY ./src /var/www/html
 
-# Replace the hardcoded production hostname with an env-var fallback so this same
-# image can be pointed at a different SQL Server (e.g. local/dev testing) via
-# MSSQL_HOST. TrustServerCertificate=true restores the old ODBC 17 behavior
-# (Encrypt=no by default) now that ODBC 18 defaults to mandatory cert validation —
-# bibmet01.ug.kth.se presents a self-signed cert that isn't in the trust store.
-RUN find /var/www/html -name "*.php" -exec sed -i \
-    -e "s|\$hostname = \"bibmet01.ug.kth.se\";|\$hostname = getenv('MSSQL_HOST') ?: 'bibmet01.ug.kth.se;TrustServerCertificate=true';|" \
-    {} \;
-
 ## Sätt ägarskap på upload-kataloger
 RUN chown -R www-data:www-data /var/www/html/PI/DiVA/DATAFILER
 ## Sätt ägarskap på upload-kataloger
