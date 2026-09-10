@@ -49,7 +49,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
             ua.City AS City,
             ua.Country_name AS Country_name,
             ua.Org_type_code AS Org_type_code
-        FROM Unified_address ua
+        FROM BIBMET.dbo.Unified_address ua
         WHERE ua.Country_name = :land
             AND UPPER(ua.Name_en) = UPPER(:org)
     ";

@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/sqlsrv_connect.php';
 
-$dbh = bibmet_sqlsrv_connect_or_redirect("BIBMET");
+$dbh = bibmet_sqlsrv_connect_or_redirect();
 ?>
 
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
@@ -35,8 +35,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect("BIBMET");
     $username = $_SESSION['anv'];
     $password = $_SESSION['ord'];
     $hostname = $_SESSION['hnamn'];
-    //$dbname = $_SESSION['dbnamn'];
-    $dbname = "BIBMET";
+    $dbname = $_SESSION['dbnamn'];
 
 
     // Write out our query.

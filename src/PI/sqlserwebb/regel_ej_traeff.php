@@ -219,7 +219,7 @@ if (!isset($configs[$typ])) {
 
 $config = $configs[$typ];
 $params = [];
-$whereParts = ["NOT EXISTS (SELECT 1 FROM Unified_address ua WHERE ua." . $config['ua_id'] . " = r." . $config['id'] . ")"];
+$whereParts = ["NOT EXISTS (SELECT 1 FROM BIBMET.dbo.Unified_address ua WHERE ua." . $config['ua_id'] . " = r." . $config['id'] . ")"];
 
 if ($land !== '' && $land !== 'Ange land') {
     $whereParts[] = "r.Country_code IN (SELECT Country_code FROM Country WHERE Display_name = :land)";

@@ -25,13 +25,13 @@ if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
     $_SESSION['regel_id'] = $regel_id;
 
     try {
-        $countStmt = $dbh->prepare("SELECT COUNT(*) AS Antal FROM Unified_address WHERE R_o_t_m_id = :regel_id");
+        $countStmt = $dbh->prepare("SELECT COUNT(*) AS Antal FROM BIBMET.dbo.Unified_address WHERE R_o_t_m_id = :regel_id");
         $countStmt->bindValue(":regel_id", (int) $regel_id, PDO::PARAM_INT);
         $countStmt->execute();
         $totalRows = (int) $countStmt->fetchColumn();
 
         $stmt = $dbh->prepare("SELECT TOP 100 Unified_address_id, Org_id, Name_en, City, Country_name, Org_type_code, Insert_date
-            FROM Unified_address
+            FROM BIBMET.dbo.Unified_address
             WHERE R_o_t_m_id = :regel_id
             ORDER BY NEWID()");
         $stmt->bindValue(":regel_id", (int) $regel_id, PDO::PARAM_INT);

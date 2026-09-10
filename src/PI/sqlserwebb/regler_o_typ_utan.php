@@ -39,7 +39,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     $dbname = $_SESSION['dbnamn'];
 
 
-    $sql = "SELECT COUNT(*) AS Antal FROM Rule_org_type_match r WHERE NOT EXISTS (SELECT * FROM Unified_address ua WHERE ua.R_o_t_m_id = r.R_o_t_m_id)";
+    $sql = "SELECT COUNT(*) AS Antal FROM Rule_org_type_match r WHERE NOT EXISTS (SELECT * FROM BIBMET.dbo.Unified_address ua WHERE ua.R_o_t_m_id = r.R_o_t_m_id)";
 
     // Execute it, or let it throw an error message if there's a problem.
 
@@ -52,7 +52,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     echo "<br /><br />";
 
     $sql = "SELECT R_o_t_m_id,Find_country,Find_city,Find_org_1,Find_org_2,Find_org_not,Country,City,Org_type_code
-    FROM Rule_org_type_match r WHERE NOT EXISTS (SELECT * FROM Unified_address ua WHERE ua.R_o_t_m_id = r.R_o_t_m_id)";
+    FROM Rule_org_type_match r WHERE NOT EXISTS (SELECT * FROM BIBMET.dbo.Unified_address ua WHERE ua.R_o_t_m_id = r.R_o_t_m_id)";
 
     // Execute it, or let it throw an error message if there's a problem.
 
