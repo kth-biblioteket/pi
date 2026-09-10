@@ -198,6 +198,15 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
     echo $dropdown;
 
+    $land_s = isset($_REQUEST['Land']) ? $_REQUEST['Land'] : "";
+    $stad_s = isset($_REQUEST['Stad']) ? $_REQUEST['Stad'] : "";
+    $org_s_1 = isset($_REQUEST['Org_1']) ? $_REQUEST['Org_1'] : "";
+    $org_s_2 = isset($_REQUEST['Org_2']) ? $_REQUEST['Org_2'] : "";
+    $org_s_ej = isset($_REQUEST['Org_ej']) ? $_REQUEST['Org_ej'] : "";
+    $land_1 = isset($_REQUEST['Land_1']) ? $_REQUEST['Land_1'] : "";
+    $stad_1 = isset($_REQUEST['Stad_1']) ? $_REQUEST['Stad_1'] : "";
+    $orgtyp = isset($_REQUEST['Orgtyp']) ? $_REQUEST['Orgtyp'] : "";
+
 if (isset($_POST['spara'])) {
         $land_s = $_POST['Land'];
         $stad_s = $_POST['Stad'];
@@ -233,7 +242,7 @@ if (isset($_POST['spara'])) {
          }
     }
 
-    $n_regel_o_typ = $_SESSION['n_regel_o_typ'];
+    $n_regel_o_typ = isset($_SESSION['n_regel_o_typ']) ? $_SESSION['n_regel_o_typ'] : "";
 
     if ($koll_svar && $n_regel_o_typ <> $org_s_1) {
 

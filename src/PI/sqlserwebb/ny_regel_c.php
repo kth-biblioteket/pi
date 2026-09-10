@@ -363,6 +363,19 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
     $hostname = $_SESSION['hnamn'];
     $dbname = $_SESSION['dbnamn'];
 
+    $land_s = isset($_REQUEST['Land']) ? $_REQUEST['Land'] : "";
+    $stad_s = isset($_REQUEST['Stad']) ? $_REQUEST['Stad'] : "";
+    $org_s = isset($_REQUEST['Org']) ? $_REQUEST['Org'] : "";
+    $delas = isset($_REQUEST['Delas']) ? $_REQUEST['Delas'] : "1";
+    $land_1 = isset($_REQUEST['Land_1']) ? $_REQUEST['Land_1'] : "";
+    $land_2 = isset($_REQUEST['Land_2']) ? $_REQUEST['Land_2'] : "";
+    $land_3 = isset($_REQUEST['Land_3']) ? $_REQUEST['Land_3'] : "";
+    $stad_1 = isset($_REQUEST['Stad_1']) ? $_REQUEST['Stad_1'] : "";
+    $stad_2 = isset($_REQUEST['Stad_2']) ? $_REQUEST['Stad_2'] : "";
+    $stad_3 = isset($_REQUEST['Stad_3']) ? $_REQUEST['Stad_3'] : "";
+    $org_1 = isset($_REQUEST['Org_1']) ? $_REQUEST['Org_1'] : "";
+    $org_2 = isset($_REQUEST['Org_2']) ? $_REQUEST['Org_2'] : "";
+    $org_3 = isset($_REQUEST['Org_3']) ? $_REQUEST['Org_3'] : "";
 
     if (isset($_POST['spara'])) {
         $land_s = $_POST['Land'];
@@ -440,7 +453,7 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
             }
         }
 
-        $n_regel_c = $_SESSION['n_regel_c'];
+        $n_regel_c = isset($_SESSION['n_regel_c']) ? $_SESSION['n_regel_c'] : "";
 
         if ($koll_svar && $n_regel_c <> $org_s) {
 
