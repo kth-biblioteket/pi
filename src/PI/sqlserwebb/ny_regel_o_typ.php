@@ -293,7 +293,6 @@ if (isset($_POST['spara'])) {
                 <button type="submit" name="spara" class="bibmet-button bibmet-button--primary">Spara regel</button>
                 <div class="bibmet-action-group">
                     <a href="regel_organisation_typ.php" class="bibmet-button bibmet-button--secondary">Avbryt</a>
-                    <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
                 </div>
             </div>
         </form>
