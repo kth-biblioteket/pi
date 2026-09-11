@@ -175,3 +175,22 @@ make run
 
 That starts a local SQL Server container and a PHP container configured with
 `MSSQL_HOST=mssql`.
+
+### Temporary notes regarding deployment
+
+Deployment credentials are stored in the legacy repository, so changes must be pushed there after development is complete. Add the legacy repository as `upstream` if it is not already configured.
+
+```sh
+git remote add upstream git@github.com:kth-biblioteket/pi.git
+git switch ui-upgrade
+git pull origin ui-upgrade
+git push upstream ui-upgrade
+```
+
+To push your current branch to the same branch on the upstream repository:
+
+```sh
+git push -u upstream HEAD
+```
+
+After resolving the credentials, these notes should be deleted.
