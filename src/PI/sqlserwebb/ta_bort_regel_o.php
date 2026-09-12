@@ -111,6 +111,7 @@ function render_readonly_field($label, $value)
 
         <?php if ($rule) : ?>
             <form action="ta_bort_regel_resultat_o.php" method="post" class="bibmet-panel">
+                <input type="hidden" name="Regel_id" value="<?php echo bibmet_h($regel_id); ?>">
                 <div class="bibmet-panel__header">
                     <h2 class="bibmet-panel__title">Bekräfta borttagning</h2>
                 </div>

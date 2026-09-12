@@ -20,8 +20,10 @@ function bibmet_org_has_rules(PDO $dbh, $orgId)
         "rule_full_address_match",
         "rule_center_match",
     ] as $table) {
-        $checkStmt = $dbh->prepare("SELECT COUNT(*) FROM $table WHERE Org_id_1 = :org_id OR Org_id_2 = :org_id OR Org_id_3 = :org_id");
-        $checkStmt->bindValue(':org_id', (int) $orgId, PDO::PARAM_INT);
+        $checkStmt = $dbh->prepare("SELECT COUNT(*) FROM $table WHERE Org_id_1 = :org_id_1 OR Org_id_2 = :org_id_2 OR Org_id_3 = :org_id_3");
+        $checkStmt->bindValue(':org_id_1', (int) $orgId, PDO::PARAM_INT);
+        $checkStmt->bindValue(':org_id_2', (int) $orgId, PDO::PARAM_INT);
+        $checkStmt->bindValue(':org_id_3', (int) $orgId, PDO::PARAM_INT);
         $checkStmt->execute();
         if ((int) $checkStmt->fetchColumn() > 0) {
             return true;
@@ -75,7 +77,7 @@ if (!ctype_digit($u_org_id) || (int) $u_org_id <= 0) {
             $hasRules = bibmet_org_has_rules($dbh, $u_org_id);
         }
     } catch (PDOException $e) {
-        $errors[] = "Det gick inte att hämta organisationen. " . $e->getMessage();
+        $errors[] = "Det gick inte att hämta organisationen.";
     }
 }
 
@@ -130,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $organisation && !$errors) {
             if ($dbh->inTransaction()) {
                 $dbh->rollBack();
             }
-            $errors[] = "Fel vid borttagande av organisationen. " . $e->getMessage();
+            $errors[] = "Fel vid borttagande av organisationen.";
         }
     }
 }

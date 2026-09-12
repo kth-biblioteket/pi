@@ -1,100 +1,105 @@
 <?php
 require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
 $dbh = bibmet_sqlsrv_connect_or_redirect();
+
+$regel_id = isset($_POST['Regel_id']) ? (string) $_POST['Regel_id'] : (isset($_GET['Regel_id']) ? (string) $_GET['Regel_id'] : (isset($_SESSION['regel_id']) ? (string) $_SESSION['regel_id'] : ""));
+$messages = [];
+$errors = [];
+$deleted = false;
+$ruleSummary = null;
+
+if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
+    $errors[] = "Ogiltigt regel-id.";
+} elseif (isset($_SESSION['b_regel_o_typ_id']) && (string) $_SESSION['b_regel_o_typ_id'] === $regel_id) {
+    $messages[] = "Regeln är redan borttagen i den här sessionen.";
+    $deleted = true;
+} else {
+    try {
+        $selectStmt = $dbh->prepare("SELECT * FROM rule_org_type_match WHERE R_o_t_m_id = :regel_id");
+        $selectStmt->bindValue(":regel_id", (int) $regel_id, PDO::PARAM_INT);
+        $selectStmt->execute();
+        $rule = $selectStmt->fetch(PDO::FETCH_ASSOC);
+        $ruleSummary = $rule ?: null;
+
+        if (!$rule) {
+            $errors[] = "Regeln hittades inte eller är redan borttagen.";
+        } else {
+            $deleteStmt = $dbh->prepare("DELETE FROM rule_org_type_match WHERE R_o_t_m_id = :regel_id");
+            bibmet_set_query_timeout($deleteStmt, 10);
+            $deleteStmt->bindValue(":regel_id", (int) $regel_id, PDO::PARAM_INT);
+            $deleteStmt->execute();
+
+            if ($deleteStmt->rowCount() > 0) {
+                $_SESSION['b_regel_o_typ_id'] = $regel_id;
+                $deleted = true;
+                $messages[] = "Regeln är borttagen.";
+            } else {
+                $errors[] = "Regeln hittades inte eller är redan borttagen.";
+            }
+        }
+    } catch (PDOException $e) {
+        $errors[] = "Fel vid borttagande av regeln.";
+    }
+}
 ?>
 
-<!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
-<! Författare: Cecilia Wiklander>
-<! Syfte: Adressrättnings-hantering>
-<! Ändringar: >
+<!DOCTYPE html>
+<html lang="sv">
 
 <head>
-
     <meta charset="utf-8">
-
-    <title>TA BORT REGEL ORGANISATIONSTYP</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ta bort regel organisationstyp</title>
     <link href="Site.css" rel="stylesheet">
-
+    <?php include("include_bibmet_kth.html"); ?>
 </head>
 
-<body>
+<body class="bibmet-body">
+    <?php include('include_head_new.html'); ?>
 
-<?php include('include_head_new.html'); ?>
+    <main class="bibmet-main">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Adressrättningsregler</p>
+                    <h1 class="bibmet-title">Ta bort regel organisationstyp</h1>
+                    <p class="bibmet-muted">Regel-id: <?php echo bibmet_h($regel_id); ?></p>
+                </div>
+                <div class="bibmet-action-group">
+                    <a href="regel_organisation_typ.php" class="bibmet-button bibmet-button--primary">Till sökning</a>
+                    <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
+                </div>
+            </div>
+        </section>
 
-<?php
-
-    $regel_id = $_SESSION['regel_id'];
-
-    $username = $_SESSION['anv'];
-    $password = $_SESSION['ord'];
-    $hostname = $_SESSION['hnamn'];
-    $dbname = $_SESSION['dbnamn'];
-
-
-    $b_regel_o_typ_id = $_SESSION['b_regel_o_typ_id'];
-
-    if ($b_regel_o_typ_id <> $regel_id) {
-
-        // Ta bort regeln
-
-        $sql_d = "DELETE FROM rule_org_type_match WHERE R_o_t_m_id = " . $regel_id;
-
-        $stmt = $dbh->query( $sql_d );
-
-        if ($count = $stmt->rowCount() > 0) {
-            echo '<script language="javascript">';
-            echo 'alert("Regeln är borttagen!")';
-            echo '</script>';
-            $_SESSION['b_regel_o_typ_id'] = $regel_id;
+        <?php
+        if ($ruleSummary) {
+            bibmet_render_summary_panel("Regel", [
+                "Regel-id" => $ruleSummary['R_o_t_m_id'] ?? null,
+                "Land" => $ruleSummary['Find_country'] ?? null,
+                "Stad" => $ruleSummary['Find_city'] ?? null,
+                "Organisation, sträng 1" => $ruleSummary['Find_org_1'] ?? null,
+                "Organisation, sträng 2" => $ruleSummary['Find_org_2'] ?? null,
+                "Organisation, sträng ej" => $ruleSummary['Find_org_not'] ?? null,
+                "Organisationstyp" => $ruleSummary['Org_type_code'] ?? null,
+                "Annat land" => $ruleSummary['Country'] ?? null,
+                "Annan stad" => $ruleSummary['City'] ?? null,
+            ]);
         }
-        else {
-            echo '<script language="javascript">';
-            echo 'alert("Fel vid borttagande av regeln!")';
-            echo '</script>';
-        }
-    }
+        ?>
 
-?>
+        <?php if ($errors) : ?>
+            <div class="bibmet-alert" role="alert">
+                <?php foreach ($errors as $error) : ?>
+                    <p><?php echo bibmet_h($error); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
-<h2>TA BORT REGEL ORGANISATIONSTYP</h2>
+        <?php bibmet_render_messages_panel($deleted ? "Borttagning klar" : "Resultat", $messages, $deleted ? "success" : ""); ?>
+    </main>
+</body>
 
-            <form action="ta_bort_regel_resultat_o_typ.php" method="post">
-                <a href='regel_organisation_typ.php'>TILL SÖKNING</a>&nbsp;&nbsp;
-                <a href='adressmeny.php'>TILL MENYN</a>
-                <br /><br />
-
-                <h3>SÖKFÄLT</h3>
-
-                Land:</br>
-                <input type="text" name="Land" id="id_land_s" disabled />
-                <br />
-                Stad:</br>
-                <input type="text" name="Stad" id="id_s_stad" disabled />
-                <br />
-                Organisation, sträng 1:</br>
-                <input type="text" name="Organisation1" id="id_s_org_1" disabled /><br />
-                Organisation, sträng 2:</br>
-                <input type="text" name="Organisation2" id="id_s_org_2" disabled /><br />
-                Organisation, sträng ej:</br>
-                <input type="text" name="Organisationej" id="id_s_org_ej" disabled /><br />
-
-                <h3>ÄNDRINGSFÄLT</h3>
-
-                Organisationstyp:<br />
-                <input type="text" name="Orgtypkod" id="id_h_org_kod" disabled />
-                <br />
-                Annat land:<br />
-                <input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" size="20" disabled />
-                <br />
-                Annan stad:<br />
-                <input type="text" name="Annan_stad_1" id="h_id_stad_1" disabled /><br />
-                <br />
-
-            </form>
-
-    </body>
 </html>

@@ -44,6 +44,80 @@ function bibmet_bind_all(PDOStatement $stmt, array $params)
     }
 }
 
+// Show an empty value consistently in read-only summaries.
+function bibmet_display_value($value)
+{
+    return $value === null || $value === "" ? "—" : (string) $value;
+}
+
+// Set a statement timeout when the active PDO driver supports it.
+function bibmet_set_query_timeout(PDOStatement $stmt, $seconds)
+{
+    if (!defined('PDO::SQLSRV_ATTR_QUERY_TIMEOUT')) {
+        return;
+    }
+
+    try {
+        $stmt->setAttribute(constant('PDO::SQLSRV_ATTR_QUERY_TIMEOUT'), (int) $seconds);
+    } catch (Throwable $e) {
+        // Timeout attributes are driver-specific; ignore unsupported drivers.
+    }
+}
+
+// Render a reusable read-only summary panel using the standard Bibmet field/grid style.
+function bibmet_render_summary_panel($title, array $fields)
+{
+    ?>
+    <section class="bibmet-panel">
+        <div class="bibmet-panel__header">
+            <h2 class="bibmet-panel__title"><?php echo bibmet_h($title); ?></h2>
+        </div>
+        <div class="bibmet-panel__body">
+            <div class="bibmet-form-grid bibmet-form-grid--compact">
+                <?php foreach ($fields as $label => $value) : ?>
+                    <div class="bibmet-field">
+                        <span class="bibmet-field__label"><?php echo bibmet_h($label); ?></span>
+                        <p class="bibmet-summary-value"><?php echo bibmet_h(bibmet_display_value($value)); ?></p>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </section>
+    <?php
+}
+
+// Render standard result/status messages for action pages.
+function bibmet_render_messages_panel($title, array $messages, $variant = "")
+{
+    if (!$messages) {
+        return;
+    }
+
+    if ($variant === "success") {
+        ?>
+        <div class="bibmet-alert bibmet-alert--success" role="status" aria-label="<?php echo bibmet_h($title); ?>">
+            <?php foreach ($messages as $message) : ?>
+                <p><?php echo bibmet_h($message); ?></p>
+            <?php endforeach; ?>
+        </div>
+        <?php
+        return;
+    }
+
+    ?>
+    <section class="bibmet-panel">
+        <div class="bibmet-panel__header">
+            <h2 class="bibmet-panel__title"><?php echo bibmet_h($title); ?></h2>
+        </div>
+        <div class="bibmet-panel__body">
+            <?php foreach ($messages as $message) : ?>
+                <p class="bibmet-muted"><?php echo bibmet_h($message); ?></p>
+            <?php endforeach; ?>
+        </div>
+    </section>
+    <?php
+}
+
 // Render the standard Bibmet pagination controls; extra params preserve required page context.
 function bibmet_render_pagination($page, $totalPages, array $extraParams = [])
 {
