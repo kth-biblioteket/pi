@@ -7,7 +7,8 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 $u_org_id = bibmet_request_value('Unified_org_id', isset($_SESSION['u_org_id']) ? (string) $_SESSION['u_org_id'] : "");
 $reason = isset($_POST['orsak']) ? trim((string) $_POST['orsak']) : "";
 $errors = [];
-$messages = [];
+$successMessages = [];
+$warningMessages = [];
 $organisation = null;
 $orgTypeName = "";
 $hasRules = false;
@@ -85,9 +86,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $organisation && !$errors) {
     if ($reason === "") {
         $errors[] = "Orsak måste anges.";
     } elseif ($hasRules) {
-        $errors[] = "Organisationen kan inte tas bort eftersom den finns i regler.";
+        $warningMessages[] = "Organisationen kan inte tas bort eftersom den finns i regler.";
     } elseif (isset($_SESSION['b_org_id']) && (string) $_SESSION['b_org_id'] === $u_org_id) {
-        $messages[] = "Organisationen är redan borttagen i den här sessionen.";
+        $successMessages[] = "Organisationen är redan borttagen i den här sessionen.";
         $deleted = true;
         $organisation = null;
     } else {
@@ -119,9 +120,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $organisation && !$errors) {
                 $_SESSION['b_org_id'] = $u_org_id;
                 $deleted = true;
                 $organisation = null;
-                $messages[] = "Organisationen är borttagen.";
+                $successMessages[] = "Organisationen är borttagen.";
                 if ($archiveWarning !== "") {
-                    $messages[] = $archiveWarning;
+                    $warningMessages[] = $archiveWarning;
                 }
                 $dbh->commit();
             } else {
@@ -185,19 +186,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $organisation && !$errors) {
             </div>
         <?php endif; ?>
 
-        <?php if ($messages) : ?>
-            <div class="bibmet-alert bibmet-alert--success" role="status">
-                <?php foreach ($messages as $message) : ?>
-                    <p><?php echo bibmet_h($message); ?></p>
-                <?php endforeach; ?>
-            </div>
-        <?php endif; ?>
+        <?php
+        if ($hasRules && $organisation) {
+            $ruleWarning = "Organisationen kan inte tas bort eftersom den finns i regler.";
+            if (!in_array($ruleWarning, $warningMessages, true)) {
+                $warningMessages[] = $ruleWarning;
+            }
+        }
+        ?>
 
-        <?php if ($hasRules && $organisation) : ?>
-            <div class="bibmet-alert" role="alert">
-                <p>Organisationen kan inte tas bort eftersom den finns i regler.</p>
-            </div>
-        <?php endif; ?>
+        <?php bibmet_render_messages_panel($deleted ? "Borttagning klar" : "Resultat", $successMessages, "success"); ?>
+        <?php bibmet_render_messages_panel("Varning", $warningMessages, "warning"); ?>
 
         <?php if ($organisation) : ?>
             <form action="ta_bort_organisation.php" method="post" class="bibmet-panel">

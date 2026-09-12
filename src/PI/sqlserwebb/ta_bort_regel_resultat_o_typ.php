@@ -5,7 +5,7 @@ require_once __DIR__ . '/bibmet_ui.php';
 $dbh = bibmet_sqlsrv_connect_or_redirect();
 
 $regel_id = isset($_POST['Regel_id']) ? (string) $_POST['Regel_id'] : (isset($_GET['Regel_id']) ? (string) $_GET['Regel_id'] : (isset($_SESSION['regel_id']) ? (string) $_SESSION['regel_id'] : ""));
-$messages = [];
+$successMessages = [];
 $errors = [];
 $deleted = false;
 $ruleSummary = null;
@@ -13,7 +13,7 @@ $ruleSummary = null;
 if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
     $errors[] = "Ogiltigt regel-id.";
 } elseif (isset($_SESSION['b_regel_o_typ_id']) && (string) $_SESSION['b_regel_o_typ_id'] === $regel_id) {
-    $messages[] = "Regeln är redan borttagen i den här sessionen.";
+    $successMessages[] = "Regeln är redan borttagen i den här sessionen.";
     $deleted = true;
 } else {
     try {
@@ -34,7 +34,7 @@ if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
             if ($deleteStmt->rowCount() > 0) {
                 $_SESSION['b_regel_o_typ_id'] = $regel_id;
                 $deleted = true;
-                $messages[] = "Regeln är borttagen.";
+                $successMessages[] = "Regeln är borttagen.";
             } else {
                 $errors[] = "Regeln hittades inte eller är redan borttagen.";
             }
@@ -98,7 +98,7 @@ if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
             </div>
         <?php endif; ?>
 
-        <?php bibmet_render_messages_panel($deleted ? "Borttagning klar" : "Resultat", $messages, $deleted ? "success" : ""); ?>
+        <?php bibmet_render_messages_panel($deleted ? "Borttagning klar" : "Resultat", $successMessages, "success"); ?>
     </main>
 </body>
 

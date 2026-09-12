@@ -6,7 +6,8 @@ $dbh = bibmet_sqlsrv_connect_or_redirect();
 
 $regel_id = isset($_POST['Regel_id']) ? (string) $_POST['Regel_id'] : (isset($_GET['Regel_id']) ? (string) $_GET['Regel_id'] : (isset($_SESSION['regel_id']) ? (string) $_SESSION['regel_id'] : ""));
 $reason = isset($_POST['orsak']) ? trim((string) $_POST['orsak']) : "";
-$messages = [];
+$successMessages = [];
+$warningMessages = [];
 $errors = [];
 $archiveWarning = "";
 $deleted = false;
@@ -17,7 +18,7 @@ if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
 } elseif ($reason === "") {
     $errors[] = "Orsak måste anges.";
 } elseif (isset($_SESSION['b_regel_f_a_id']) && (string) $_SESSION['b_regel_f_a_id'] === $regel_id) {
-    $messages[] = "Regeln är redan borttagen i den här sessionen.";
+    $successMessages[] = "Regeln är redan borttagen i den här sessionen.";
     $deleted = true;
 } else {
     try {
@@ -77,9 +78,9 @@ if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
             if ($deleteStmt->rowCount() > 0) {
                 $_SESSION['b_regel_f_a_id'] = $regel_id;
                 $deleted = true;
-                $messages[] = "Regeln är borttagen.";
+                $successMessages[] = "Regeln är borttagen.";
                 if ($archiveWarning !== "") {
-                    $messages[] = $archiveWarning;
+                    $warningMessages[] = $archiveWarning;
                 }
                 $dbh->commit();
             } else {
@@ -152,7 +153,8 @@ if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
             </div>
         <?php endif; ?>
 
-        <?php bibmet_render_messages_panel($deleted ? "Borttagning klar" : "Resultat", $messages, $deleted ? "success" : ""); ?>
+        <?php bibmet_render_messages_panel($deleted ? "Borttagning klar" : "Resultat", $successMessages, "success"); ?>
+        <?php bibmet_render_messages_panel("Varning", $warningMessages, "warning"); ?>
     </main>
 </body>
 
