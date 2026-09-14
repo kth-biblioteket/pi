@@ -497,7 +497,7 @@ $stmt_x->execute();
 
             }
         // Stäng utfil
-        fclose($fh_ut);
+        fclose($fp_ut);
 
         // Öppna listfil för antal författare
         $fp_lista = fopen($filnamn_lista, 'w');
@@ -515,7 +515,7 @@ $stmt_x->execute();
         }     
         
         // Stäng listfil
-        fclose($fh_lista);
+        fclose($fp_lista);
      
     // *** Slut Wos-delen ***
     }
@@ -540,7 +540,7 @@ $stmt_x->execute();
         }
 
         fclose($fh_in);
-        fclose($fh_ut);
+        fclose($fp_ut);
 
     // *** Slut Scopus-delen ***
     } 
