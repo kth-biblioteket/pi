@@ -108,6 +108,61 @@ function bibmet_find_org_id(PDO $dbh, $label)
     return $value === false ? null : (int) $value;
 }
 
+// Render a standard text input field.
+function bibmet_render_text_field($label, $name, $value, $hint = "", $required = false)
+{
+    ?>
+    <label class="bibmet-field">
+        <span class="bibmet-field__label"><?php echo bibmet_h($label); ?></span>
+        <input class="bibmet-input" type="text" name="<?php echo bibmet_h($name); ?>" value="<?php echo bibmet_h($value); ?>"<?php echo $required ? ' required' : ''; ?>>
+        <?php if ($hint !== "") : ?>
+            <span class="bibmet-field__hint"><?php echo bibmet_h($hint); ?></span>
+        <?php endif; ?>
+    </label>
+    <?php
+}
+
+// Render a standard hidden input field.
+function bibmet_render_hidden_field($name, $value)
+{
+    ?>
+    <input type="hidden" name="<?php echo bibmet_h($name); ?>" value="<?php echo bibmet_h($value); ?>">
+    <?php
+}
+
+// Render a country select using the shared Tom Select pattern.
+function bibmet_render_country_select($label, $name, $value, array $countries, $required = false)
+{
+    ?>
+    <label class="bibmet-field">
+        <span class="bibmet-field__label"><?php echo bibmet_h($label); ?></span>
+        <select class="bibmet-select js-bibmet-select" name="<?php echo bibmet_h($name); ?>"<?php echo $required ? ' required' : ''; ?>>
+            <option value="Ange land"<?php echo $value === "" ? ' selected' : ''; ?>>Ange land</option>
+            <?php foreach ($countries as $country) : ?>
+                <option value="<?php echo bibmet_h($country); ?>"<?php echo bibmet_selected_attr($country, $value); ?>><?php echo bibmet_h($country); ?></option>
+            <?php endforeach; ?>
+        </select>
+    </label>
+    <?php
+}
+
+// Render an organisation select using the shared remote Tom Select pattern.
+function bibmet_render_org_select($label, $name, $value, $required = false)
+{
+    ?>
+    <label class="bibmet-field">
+        <span class="bibmet-field__label"><?php echo bibmet_h($label); ?></span>
+        <select class="bibmet-select js-bibmet-select" name="<?php echo bibmet_h($name); ?>" data-remote-url="bibmet-org-options.php"<?php echo $required ? ' required' : ''; ?>>
+            <option value="Ange organisation"<?php echo $value === "" ? ' selected' : ''; ?>>Ange organisation</option>
+            <?php if ($value !== "" && $value !== "Ange organisation") : ?>
+                <option value="<?php echo bibmet_h($value); ?>" selected><?php echo bibmet_h($value); ?></option>
+            <?php endif; ?>
+        </select>
+        <span class="bibmet-field__hint">Sök och välj organisation. Värdet sparas som Namn [Land].</span>
+    </label>
+    <?php
+}
+
 // Show an empty value consistently in read-only summaries.
 function bibmet_display_value($value)
 {
