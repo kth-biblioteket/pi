@@ -5,9 +5,9 @@ FROM php:8.3-apache-bookworm
 # apt-key is removed in modern Debian; use gpg --dearmor keyring instead.
 RUN a2enmod rewrite && \
 cp $PHP_INI_DIR/php.ini-development $PHP_INI_DIR/php.ini && \
-docker-php-ext-install mysqli pdo pdo_mysql && \
 apt-get update && \
-apt-get -y install --no-install-recommends nano locales && \
+apt-get -y install --no-install-recommends nano locales libzip-dev && \
+docker-php-ext-install mysqli pdo pdo_mysql zip && \
 sed -i '/en_GB.UTF-8/s/^# //g' /etc/locale.gen && \
     locale-gen && \
 sed -i '/sv_SE.UTF-8/s/^# //g' /etc/locale.gen && \
@@ -15,7 +15,7 @@ locale-gen
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl gnupg2 unixodbc-dev \
+    curl gnupg2 unixodbc-dev libzip-dev \
     && apt-get clean
 
 # Download and install the Microsoft ODBC Driver for SQL Server
@@ -55,7 +55,16 @@ RUN find /var/www/html -name "*.php" -exec sed -i \
     -e "s|\$hostname = \"bibmet01.ug.kth.se\";|\$hostname = getenv('MSSQL_HOST') ?: 'bibmet01.ug.kth.se;TrustServerCertificate=true';|" \
     {} \;
 
-## Sätt ägarskap på upload-kataloger
-RUN chown -R www-data:www-data /var/www/html/PI/DiVA/DATAFILER
-## Sätt ägarskap på upload-kataloger
-RUN chown -R www-data:www-data /var/www/html/PI/sqlserwebb/DATAFILER
+## Set ownership and write permissions for legacy upload directories.
+## These directories are used by file-upload pages such as ISBN uploads
+## and organisation-rule uploads. The WoS import flow now processes files
+## in /tmp, but other upload flows can still write to DATAFILER.
+## Note: in prod/ref these directories are bind-mounted from the host,
+## so host permissions must also be correct. This covers the image case.
+RUN mkdir -p /var/www/html/PI/DiVA/DATAFILER \
+    /var/www/html/PI/sqlserwebb/DATAFILER \
+    && chown -R www-data:www-data /var/www/html/PI/DiVA/DATAFILER \
+    /var/www/html/PI/sqlserwebb/DATAFILER \
+    && chmod -R u+rwX,go-rwx /var/www/html/PI/DiVA/DATAFILER \
+    /var/www/html/PI/sqlserwebb/DATAFILER
+

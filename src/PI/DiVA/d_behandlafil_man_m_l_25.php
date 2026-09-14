@@ -26,10 +26,19 @@
 
 if (isset($_POST['behandla'])) {
 
+    // Large WoS files can take longer than PHP's default 30s limit,
+    // especially when split into multiple output files and emails.
+    set_time_limit(0);
+
     //$hostname = "localhost";
     $dbname = "bibmet";
-    $username = $_SESSION['anv'];
-    $password = $_SESSION['ord'];
+    $username = $_SESSION['anv'] ?? getenv('PI_DB_USER');
+    $password = $_SESSION['ord'] ?? getenv('PI_DB_PASSWORD');
+
+    if (!$username || !$password) {
+        echo 'Du måste logga in innan filen behandlas.';
+        exit;
+    }
 
     $pdo = new PDO("mysql:host=$hostname;dbname=$dbname", $username, $password);
 
@@ -40,11 +49,15 @@ if (isset($_POST['behandla'])) {
         require_once($_SERVER['DOCUMENT_ROOT'] . '/PHPMailer/PHPMailerAutoload.php');
         $mail = new PHPMailer; 
 	$mail->isSMTP(); 
-	$mail->Host = "relayhost.sys.kth.se"; 
+	$mail->Host = getenv('SMTP_HOST') ?: "relayhost.sys.kth.se";
+        $mail->Port = getenv('SMTP_PORT') ?: 587;
 	$mail->SMTPAuth   = FALSE; 
-	$mail->SMTPSecure = "tls";        
+	$mail->SMTPSecure = getenv('SMTP_SECURE') !== false ? getenv('SMTP_SECURE') : "tls";
+        $mail->SMTPKeepAlive = true;
+        $mail->Timeout = 60;
         $mail->CharSet = 'UTF-8';
-        $message = 'Behandlade filer kommer här';        
+        $message = 'Alla behandlade filer finns i bifogad zip-fil.';
+        $generatedFiles = array();
 
     $sql = "SELECT CURRENT_TIMESTAMP() AS DatumTid";
     $stmt = $pdo->query( $sql );
@@ -77,8 +90,9 @@ if (isset($_POST['behandla'])) {
 
 
 
-    $target_dir = "DATAFILER/";
-    $target_file = $target_dir . basename($_FILES["fileToUpload"]["name"]);
+    $uploadedFileName = basename($_FILES["fileToUpload"]["name"]);
+    $target_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'diva-import-' . bin2hex(random_bytes(8)) . DIRECTORY_SEPARATOR;
+    $target_file = $target_dir . $uploadedFileName;
     $imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
     $uploadOk = 1;
     
@@ -106,6 +120,9 @@ if (isset($_POST['behandla'])) {
                       }
                       else {
                             
+                                if (!is_dir($target_dir)) {
+                                    mkdir($target_dir, 0700, true);
+                                }
                       		if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
                           	    echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
                       		} 
@@ -133,6 +150,7 @@ if (isset($_POST['behandla'])) {
     $radnr = 0;
     $postnr = 0;
     $tilldela_af = 0;
+    $tilldela_au = 0;
     $tilldela_c1 = 0;
 
     // Fil att skriva ut
@@ -591,20 +609,22 @@ if (isset($_POST['behandla'])) {
                                                     
                }
 
-               if ($skriv == 1) {
-                  $line = $Rad;
-                  fwrite($fp_ut, $line);
-               }
+               if (is_resource($fp_ut)) {
+                  if ($skriv == 1) {
+                     $line = $Rad;
+                     fwrite($fp_ut, $line);
+                  }
 
-               if ($Skriv_etal_AF == 1) {
-                  $Skriv_etal_AF = 0; 
-                  $line = '   et al.' . PHP_EOL;
-                  fwrite($fp_ut, $line);
-               }
-               if ($Skriv_etal_AU == 1) {
-                  $Skriv_etal_AU = 0; 
-                  $line = '   et al.' . PHP_EOL;
-                  fwrite($fp_ut, $line);
+                  if ($Skriv_etal_AF == 1) {
+                     $Skriv_etal_AF = 0; 
+                     $line = '   et al.' . PHP_EOL;
+                     fwrite($fp_ut, $line);
+                  }
+                  if ($Skriv_etal_AU == 1) {
+                     $Skriv_etal_AU = 0; 
+                     $line = '   et al.' . PHP_EOL;
+                     fwrite($fp_ut, $line);
+                  }
                }
                
                if ($antal_PT == $antal_per_fil && substr($Rad, 0, 2) == 'ER' && $antal_filer > $antal_skrivna_filer + 1) {
@@ -613,20 +633,12 @@ if (isset($_POST['behandla'])) {
                    $line = $rad_s_2 . PHP_EOL;
                    fwrite($fp_ut, $line);                          
                    // Stäng utfil
-                   fclose($fp_ut);    
+                   fclose($fp_ut);
+                   $fp_ut = null;
                    $antal_PT = 0;    
                    $antal_skrivna_filer = $antal_skrivna_filer + 1; 
                    
-        $mail->clearAttachments();
-        $mail->addAttachment($filnamn);            
-        $mail->setFrom('biblioteket@kth.se');
-        $mail->addAddress($Epost);
-        $mail->Subject  = 'Behandlade filer';
-        $mail->Body     = $message;
-        if(!$mail->send()) {
-           echo ' Fel vid skickande av meddelande.';
-           echo ' Fel: ' . $mail->ErrorInfo;
-        } 
+        $generatedFiles[] = $filnamn;
                                                     
                }
                
@@ -634,16 +646,7 @@ if (isset($_POST['behandla'])) {
                    // Stäng utfil
                    fclose($fp_ut);  
                    
-        $mail->clearAttachments();
-        $mail->addAttachment($filnamn);             
-        $mail->setFrom('biblioteket@kth.se');
-        $mail->addAddress($Epost);
-        $mail->Subject  = 'Behandlade filer';
-        $mail->Body     = $message;
-        if(!$mail->send()) {
-           echo ' Fel vid skickande av meddelande.';
-           echo ' Fel: ' . $mail->ErrorInfo;
-        } 
+        $generatedFiles[] = $filnamn;
                                                          
                }               
 
@@ -764,16 +767,7 @@ if (isset($_POST['behandla'])) {
         // Stäng utfil
         fclose($fp_ut);
         
-        $mail->clearAttachments();
-        $mail->addAttachment($filnamn);                
-        $mail->setFrom('biblioteket@kth.se');
-        $mail->addAddress($Epost);
-        $mail->Subject  = 'Behandlade filer';
-        $mail->Body     = $message;
-        if(!$mail->send()) {
-           echo ' Fel vid skickande av meddelande.';
-           echo ' Fel: ' . $mail->ErrorInfo;
-        }            
+        $generatedFiles[] = $filnamn_ut;
         
      } // Slut på dela utfil i flera eller ej 2021-04-06 CEWI    
         
@@ -795,19 +789,57 @@ if (isset($_POST['behandla'])) {
         // Stäng listfil
         fclose($fp_lista);
             
-        $mail->clearAttachments();     
-        $mail->addAttachment($filnamn_lista);               
-        $mail->setFrom('biblioteket@kth.se');
-        $mail->addAddress($Epost);
-        $mail->Subject  = 'Behandlade filer';
-        $mail->Body     = $message;
-        if(!$mail->send()) {
-           echo ' Fel vid skickande av meddelande.';
-           echo ' Fel: ' . $mail->ErrorInfo;
-        } 
+        $generatedFiles[] = $filnamn_lista;
+        $zipName = $filnamn_in;
+        $zipName = str_replace('.txt', '', $zipName);
+        $zipName = $zipName . $handl . '_BEHANDLADE_FILER_' . substr((string) $DatumTid,0,10) . '.zip';
+
+        if (!class_exists('ZipArchive')) {
+           echo ' Fel vid skapande av zip-fil. PHP ZipArchive saknas.';
+        }
         else {
-           echo ' Nya filer har skickats.';
-        }                    
+           $zip = new ZipArchive();
+           if ($zip->open($zipName, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
+              echo ' Fel vid skapande av zip-fil.';
+           }
+           else {
+              foreach ($generatedFiles as $generatedFile) {
+                 if (file_exists($generatedFile)) {
+                    $zip->addFile($generatedFile, basename($generatedFile));
+                 }
+              }
+              $zip->close();
+
+              $message = "Din WoS-fil har behandlats klart." . PHP_EOL . PHP_EOL .
+                         "Inskickad fil: " . $uploadedFileName . PHP_EOL .
+                         "Antal skapade filer: " . count($generatedFiles) . PHP_EOL .
+                         "Bifogad zip-fil: " . basename($zipName) . PHP_EOL . PHP_EOL .
+                         "Alla behandlade filer finns i den bifogade zip-filen.";
+
+              $mail->clearAttachments();
+              $mail->addAttachment($zipName);
+              $mail->setFrom('biblioteket@kth.se');
+              $mail->clearAddresses();
+              $mail->addAddress($Epost);
+              $mail->Subject  = 'Behandlade filer: ' . $uploadedFileName;
+              $mail->Body     = $message;
+              if(!$mail->send()) {
+                 echo ' Fel vid skickande av meddelande.';
+                 echo ' Fel: ' . $mail->ErrorInfo;
+              }
+              else {
+                 foreach (array_merge($generatedFiles, array($zipName, $filnamn_in)) as $cleanupFile) {
+                    if (is_file($cleanupFile)) {
+                       unlink($cleanupFile);
+                    }
+                 }
+                 if (is_dir($target_dir)) {
+                    rmdir($target_dir);
+                 }
+                 echo ' Nya filer har skickats.';
+              }
+           }
+        }
      
     // *** Slut Wos-delen ***
     }
@@ -839,6 +871,10 @@ if (isset($_POST['behandla'])) {
 
     // *** Slut Scopus-delen ***
     } 
+
+    if ($mail instanceof PHPMailer) {
+        $mail->smtpClose();
+    }
 
     $stmt = $pdo->prepare("DELETE FROM filrad WHERE Persondatum = :DatumTid");
     $stmt->bindParam(':DatumTid', $DatumTid);
