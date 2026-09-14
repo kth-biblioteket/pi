@@ -613,7 +613,7 @@ if (isset($_POST['behandla'])) {
                    $line = $rad_s_2 . PHP_EOL;
                    fwrite($fp_ut, $line);                          
                    // Stäng utfil
-                   fclose($fh_ut);    
+                   fclose($fp_ut);    
                    $antal_PT = 0;    
                    $antal_skrivna_filer = $antal_skrivna_filer + 1; 
                    
@@ -632,7 +632,7 @@ if (isset($_POST['behandla'])) {
                
                if ($antal_filer == $antal_skrivna_filer + 1 && substr($Rad, 0, 2) == 'EF') {                    
                    // Stäng utfil
-                   fclose($fh_ut);  
+                   fclose($fp_ut);  
                    
         $mail->clearAttachments();
         $mail->addAttachment($filnamn);             
@@ -762,7 +762,7 @@ if (isset($_POST['behandla'])) {
 
             }
         // Stäng utfil
-        fclose($fh_ut);
+        fclose($fp_ut);
         
         $mail->clearAttachments();
         $mail->addAttachment($filnamn);                
@@ -793,7 +793,7 @@ if (isset($_POST['behandla'])) {
         }     
         
         // Stäng listfil
-        fclose($fh_lista);
+        fclose($fp_lista);
             
         $mail->clearAttachments();     
         $mail->addAttachment($filnamn_lista);               
@@ -835,7 +835,7 @@ if (isset($_POST['behandla'])) {
         }
 
         fclose($fh_in);
-        fclose($fh_ut);
+        fclose($fp_ut);
 
     // *** Slut Scopus-delen ***
     } 

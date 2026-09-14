@@ -7,6 +7,8 @@ services:
       - pi-db
     image: ghcr.io/kth-biblioteket/pi:${REPO_TYPE}
     restart: unless-stopped
+    environment:
+      MSSQL_HOST: ${MSSQL_HOST:-bibmet01.ug.kth.se;TrustServerCertificate=true}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.pi.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`${PATHPREFIX}`)"
