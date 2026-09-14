@@ -4,54 +4,29 @@ require_once __DIR__ . '/bibmet_ui.php';
 
 $dbh = bibmet_sqlsrv_connect_or_redirect();
 
-function rule_post_value($key) { return isset($_POST[$key]) ? trim((string) $_POST[$key]) : ""; }
-function normalize_select_value($value, $placeholder) { return $value === $placeholder ? null : $value; }
-function parse_org_label($label) {
-    $pos_f = strpos($label, '['); $pos_e = strpos($label, ']');
-    if ($pos_f === false || $pos_e === false || $pos_e <= $pos_f) { return [trim($label), ""]; }
-    return [trim(substr($label, 0, $pos_f)), trim(substr($label, $pos_f + 1, $pos_e - $pos_f - 1))];
-}
-function find_org_id(PDO $dbh, $label) {
-    [$name, $country] = parse_org_label($label);
-    if ($name === "") { return null; }
-    if ($country !== "") {
-        $stmt = $dbh->prepare("SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = :name AND Country_name = :country");
-        $stmt->bindValue(':country', $country, PDO::PARAM_STR);
-    } else {
-        $stmt = $dbh->prepare("SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = :name");
-    }
-    $stmt->bindValue(':name', $name, PDO::PARAM_STR);
-    $stmt->execute();
-    $value = $stmt->fetchColumn();
-    return $value === false ? null : (int) $value;
-}
-function bind_nullable(PDOStatement $stmt, $name, $value, $type = PDO::PARAM_STR) {
-    if ($value === null || $value === "") { $stmt->bindValue($name, null, PDO::PARAM_NULL); }
-    else { $stmt->bindValue($name, $value, $type); }
-}
-
 $regel_id = isset($_SESSION['regel_id']) ? (string) $_SESSION['regel_id'] : "";
 $_SESSION['regel_id_ut'] = $regel_id;
 $username = isset($_SESSION['anv']) ? $_SESSION['anv'] : "";
 $a_regel_o_id = isset($_SESSION['a_regel_o_id']) ? (string) $_SESSION['a_regel_o_id'] : "";
 
-$land_till = rule_post_value('Land_ut_2');
-$stad_till = rule_post_value('Stad_till');
-$org_till = rule_post_value('Org_till');
-$delas_till = rule_post_value('Delas_ut_2');
-$land_1_till = rule_post_value('Land_1_ut_2');
-$land_2_till = rule_post_value('Land_2_ut_2');
-$land_3_till = rule_post_value('Land_3_ut_2');
-$stad_1_till = rule_post_value('Stad_1_till');
-$stad_2_till = rule_post_value('Stad_2_till');
-$stad_3_till = rule_post_value('Stad_3_till');
-$org_1_till = rule_post_value('Org_1_ut_2');
-$org_2_till = rule_post_value('Org_2_ut_2');
-$org_3_till = rule_post_value('Org_3_ut_2');
-$fr = rule_post_value('Fr');
-$ti = rule_post_value('Ti');
+$land_till = bibmet_post_value('Land_ut_2');
+$stad_till = bibmet_post_value('Stad_till');
+$org_till = bibmet_post_value('Org_till');
+$delas_till = bibmet_post_value('Delas_ut_2');
+$land_1_till = bibmet_post_value('Land_1_ut_2');
+$land_2_till = bibmet_post_value('Land_2_ut_2');
+$land_3_till = bibmet_post_value('Land_3_ut_2');
+$stad_1_till = bibmet_post_value('Stad_1_till');
+$stad_2_till = bibmet_post_value('Stad_2_till');
+$stad_3_till = bibmet_post_value('Stad_3_till');
+$org_1_till = bibmet_post_value('Org_1_ut_2');
+$org_2_till = bibmet_post_value('Org_2_ut_2');
+$org_3_till = bibmet_post_value('Org_3_ut_2');
+$fr = bibmet_post_value('Fr');
+$ti = bibmet_post_value('Ti');
 
 $alerts = [];
+$updated = false;
 $koll_svar = false;
 
 if (!ctype_digit($regel_id) || (int) $regel_id <= 0) { $alerts[] = 'Ogiltigt regel-id!'; }
@@ -59,25 +34,25 @@ elseif ($land_till == 'Ange land') { $alerts[] = 'Land måste anges som sökfäl
 elseif (strlen($org_till) == 0) { $alerts[] = 'Organisation måste anges som sökfält!'; }
 elseif ($org_1_till == 'Ange organisation' || strlen($org_1_till) == 0) { $alerts[] = 'Organisation 1 måste anges som ändringsfält!'; }
 elseif ($delas_till == 1) {
-    if (($org_2_till != 'Ange organisation' || $org_3_till != 'Ange organisation') && (strlen($org_2_till) > 0 || strlen($org_3_till) > 0)) { $alerts[] = 'Antalet i Delas stämmer inte med antal angivna organisationer!'; }
+    if (bibmet_has_org_value($org_2_till) || bibmet_has_org_value($org_3_till)) { $alerts[] = 'Antalet i Delas stämmer inte med antal angivna organisationer!'; }
     else { $koll_svar = true; }
 } elseif ($delas_till == 2) {
-    if ($org_2_till == 'Ange organisation' || strlen($org_2_till) == 0 || ($org_3_till != 'Ange organisation' && strlen($org_3_till) > 0)) { $alerts[] = 'Antalet i Delas stämmer inte med antal angivna organisationer!'; }
+    if (!bibmet_has_org_value($org_2_till) || bibmet_has_org_value($org_3_till)) { $alerts[] = 'Antalet i Delas stämmer inte med antal angivna organisationer!'; }
     else { $koll_svar = true; }
 } elseif ($delas_till == 3) {
-    if ($org_2_till == 'Ange organisation' || $org_3_till == 'Ange organisation' || strlen($org_2_till) == 0 || strlen($org_3_till) == 0) { $alerts[] = 'Antalet i Delas stämmer inte med antal angivna organisationer!'; }
+    if (!bibmet_has_org_value($org_2_till) || !bibmet_has_org_value($org_3_till)) { $alerts[] = 'Antalet i Delas stämmer inte med antal angivna organisationer!'; }
     else { $koll_svar = true; }
 } else { $alerts[] = 'Antalet i Delas kan vara mellan 1 och 3!'; }
 
-$land_1_db = normalize_select_value($land_1_till, 'Ange land');
-$land_2_db = normalize_select_value($land_2_till, 'Ange land');
-$land_3_db = normalize_select_value($land_3_till, 'Ange land');
+$land_1_db = bibmet_normalize_select_value($land_1_till, 'Ange land');
+$land_2_db = bibmet_normalize_select_value($land_2_till, 'Ange land');
+$land_3_db = bibmet_normalize_select_value($land_3_till, 'Ange land');
 
 if ($koll_svar && $a_regel_o_id !== $regel_id) {
     try {
-        $org_id_1 = find_org_id($dbh, $org_1_till);
-        $org_id_2 = ((int) $delas_till > 1 && $org_2_till != 'Ange organisation') ? find_org_id($dbh, $org_2_till) : null;
-        $org_id_3 = ((int) $delas_till > 2 && $org_3_till != 'Ange organisation') ? find_org_id($dbh, $org_3_till) : null;
+        $org_id_1 = bibmet_find_org_id($dbh, $org_1_till);
+        $org_id_2 = ((int) $delas_till > 1 && bibmet_has_org_value($org_2_till)) ? bibmet_find_org_id($dbh, $org_2_till) : null;
+        $org_id_3 = ((int) $delas_till > 2 && bibmet_has_org_value($org_3_till)) ? bibmet_find_org_id($dbh, $org_3_till) : null;
 
         $countryStmt = $dbh->prepare("SELECT Country_code FROM Country WHERE Display_name = :land");
         $countryStmt->bindValue(':land', $land_till, PDO::PARAM_STR);
@@ -91,22 +66,22 @@ if ($koll_svar && $a_regel_o_id !== $regel_id) {
             Valid_from = :valid_from, Valid_to = :valid_to WHERE R_o_m_id = :regel_id";
         $stmt = $dbh->prepare($sql);
         $stmt->bindValue(':find_country', $land_till, PDO::PARAM_STR);
-        bind_nullable($stmt, ':country_code', $country_code);
-        bind_nullable($stmt, ':find_city', $stad_till);
+        bibmet_bind_nullable($stmt, ':country_code', $country_code);
+        bibmet_bind_nullable($stmt, ':find_city', $stad_till);
         $stmt->bindValue(':find_org', $org_till, PDO::PARAM_STR);
         $stmt->bindValue(':divide', (int) $delas_till, PDO::PARAM_INT);
-        bind_nullable($stmt, ':country_1', $land_1_db);
-        bind_nullable($stmt, ':city_1', $stad_1_till);
-        bind_nullable($stmt, ':org_id_1', $org_id_1, PDO::PARAM_INT);
-        bind_nullable($stmt, ':country_2', (int) $delas_till >= 2 ? $land_2_db : null);
-        bind_nullable($stmt, ':city_2', (int) $delas_till >= 2 ? $stad_2_till : null);
-        bind_nullable($stmt, ':org_id_2', (int) $delas_till >= 2 ? $org_id_2 : null, PDO::PARAM_INT);
-        bind_nullable($stmt, ':country_3', (int) $delas_till >= 3 ? $land_3_db : null);
-        bind_nullable($stmt, ':city_3', (int) $delas_till >= 3 ? $stad_3_till : null);
-        bind_nullable($stmt, ':org_id_3', (int) $delas_till >= 3 ? $org_id_3 : null, PDO::PARAM_INT);
+        bibmet_bind_nullable($stmt, ':country_1', $land_1_db);
+        bibmet_bind_nullable($stmt, ':city_1', $stad_1_till);
+        bibmet_bind_nullable($stmt, ':org_id_1', $org_id_1, PDO::PARAM_INT);
+        bibmet_bind_nullable($stmt, ':country_2', (int) $delas_till >= 2 ? $land_2_db : null);
+        bibmet_bind_nullable($stmt, ':city_2', (int) $delas_till >= 2 ? $stad_2_till : null);
+        bibmet_bind_nullable($stmt, ':org_id_2', (int) $delas_till >= 2 ? $org_id_2 : null, PDO::PARAM_INT);
+        bibmet_bind_nullable($stmt, ':country_3', (int) $delas_till >= 3 ? $land_3_db : null);
+        bibmet_bind_nullable($stmt, ':city_3', (int) $delas_till >= 3 ? $stad_3_till : null);
+        bibmet_bind_nullable($stmt, ':org_id_3', (int) $delas_till >= 3 ? $org_id_3 : null, PDO::PARAM_INT);
         $stmt->bindValue(':user_id', $username, PDO::PARAM_STR);
-        bind_nullable($stmt, ':valid_from', $fr === '' ? null : (int) $fr, PDO::PARAM_INT);
-        bind_nullable($stmt, ':valid_to', $ti === '' ? null : (int) $ti, PDO::PARAM_INT);
+        bibmet_bind_nullable($stmt, ':valid_from', $fr === '' ? null : (int) $fr, PDO::PARAM_INT);
+        bibmet_bind_nullable($stmt, ':valid_to', $ti === '' ? null : (int) $ti, PDO::PARAM_INT);
         $stmt->bindValue(':regel_id', (int) $regel_id, PDO::PARAM_INT);
         $stmt->execute();
 
@@ -116,23 +91,62 @@ if ($koll_svar && $a_regel_o_id !== $regel_id) {
 }
 ?>
 
-<!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<head><meta charset="utf-8"><title>ÄNDRA REGEL ORGANISATION</title><link href="Site_utan_storlek.css" rel="stylesheet"></head>
-<body>
-<?php include('include_head_new.html'); ?>
-<?php foreach ($alerts as $alert) : ?><script>alert("<?php echo bibmet_h($alert); ?>");</script><?php endforeach; ?>
-<h2>ÄNDRA REGEL ORGANISATION</h2>
-<form action="aendra_regel_resultat_o.php" method="post">
-<a href='aendra_regel_o.php'>TILLBAKA</a>&nbsp;&nbsp;<a href='regel_organisation.php'>TILL SÖKNING</a>&nbsp;&nbsp;<a href='adressmeny.php'>TILL MENYN</a><br /><br />
-<h3>SÖKFÄLT</h3>
-Land:</br><input type="text" value="<?php echo bibmet_h($land_till); ?>" disabled size="40" /><br />
-Stad:</br><input type="text" value="<?php echo bibmet_h($stad_till); ?>" disabled size="40" /><br />
-Organisationsnamn:</br><input type="text" value="<?php echo bibmet_h($org_till); ?>" disabled size="40" /><br />
-<h3>ÄNDRINGSFÄLT</h3>
-Delas i:</br><input type="text" size="1" value="<?php echo bibmet_h($delas_till); ?>" disabled />&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Gäller från: <input type="text" value="<?php echo bibmet_h($fr); ?>" size="4" disabled />&nbsp;&nbsp; till: <input type="text" value="<?php echo bibmet_h($ti); ?>" size="4" disabled /><br />
-<b>Organisation 1:</b><br />Annat organisationsnamn:<br /><input type="text" size="40" value="<?php echo bibmet_h($org_1_till); ?>" disabled /><br />Annat land:<br /><input type="text" size="40" value="<?php echo bibmet_h($land_1_till); ?>" disabled /><br />Annan stad:<br /><input type="text" size="40" value="<?php echo bibmet_h($stad_1_till); ?>" disabled /><br /><br />
-<b>Organisation 2:</b><br />Annat organisationsnamn:<br /><input type="text" size="40" value="<?php echo bibmet_h($org_2_till); ?>" disabled /><br />Annat land:<br /><input type="text" size="40" value="<?php echo bibmet_h($land_2_till); ?>" disabled /><br />Annan stad:<br /><input type="text" size="40" value="<?php echo bibmet_h($stad_2_till); ?>" disabled /><br /><br />
-<b>Organisation 3:</b><br />Annat organisationsnamn:<br /><input type="text" size="40" value="<?php echo bibmet_h($org_3_till); ?>" disabled /><br />Annat land:<br /><input type="text" size="40" value="<?php echo bibmet_h($land_3_till); ?>" disabled /><br />Annan stad:<br /><input type="text" size="40" value="<?php echo bibmet_h($stad_3_till); ?>" disabled /><br /><br />
-</form>
+
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ändra regel organisation</title>
+    <link href="Site.css" rel="stylesheet">
+    <?php include("include_bibmet_kth.html"); ?>
+</head>
+<body class="bibmet-body">
+    <?php include('include_head_new.html'); ?>
+    <main class="bibmet-main">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Adressrättningsregler</p>
+                    <h1 class="bibmet-title">Ändra regel organisation</h1>
+                    <p class="bibmet-muted">Resultat av ändringen.</p>
+                </div>
+                <div class="bibmet-action-group">
+                    <a href="aendra_regel_o.php" class="bibmet-button bibmet-button--secondary">Tillbaka</a>
+                    <a href="regel_organisation.php" class="bibmet-button bibmet-button--primary">Till sökning</a>
+                    <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
+                </div>
+            </div>
+        </section>
+
+        <?php if ($alerts) : ?>
+            <div class="bibmet-alert<?php echo $updated ? ' bibmet-alert--success' : ''; ?>" role="<?php echo $updated ? 'status' : 'alert'; ?>">
+                <?php foreach ($alerts as $alert) : ?>
+                    <p><?php echo bibmet_h($alert); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php
+        bibmet_render_summary_panel("Regel", [
+            "Regel-id" => $regel_id,
+            "Land" => $land_till,
+            "Stad" => $stad_till,
+            "Organisationsnamn" => $org_till,
+            "Delas i" => $delas_till,
+            "Gäller från" => $fr,
+            "Gäller till" => $ti,
+            "Organisation 1" => $org_1_till,
+            "Land 1" => $land_1_till,
+            "Stad 1" => $stad_1_till,
+            "Organisation 2" => $org_2_till,
+            "Land 2" => $land_2_till,
+            "Stad 2" => $stad_2_till,
+            "Organisation 3" => $org_3_till,
+            "Land 3" => $land_3_till,
+            "Stad 3" => $stad_3_till,
+        ]);
+        ?>
+    </main>
 </body>
 </html>

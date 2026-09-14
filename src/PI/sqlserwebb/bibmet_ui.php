@@ -44,6 +44,70 @@ function bibmet_bind_all(PDOStatement $stmt, array $params)
     }
 }
 
+// Bind nullable values without forcing empty optional fields into strings.
+function bibmet_bind_nullable(PDOStatement $stmt, $name, $value, $type = PDO::PARAM_STR)
+{
+    if ($value === null || $value === "") {
+        $stmt->bindValue($name, null, PDO::PARAM_NULL);
+    } else {
+        $stmt->bindValue($name, $value, $type);
+    }
+}
+
+// Read a POST value for legacy form handlers.
+function bibmet_post_value($key)
+{
+    return isset($_POST[$key]) ? trim((string) $_POST[$key]) : "";
+}
+
+// Preserve legacy select placeholders while storing empty optional values as NULL.
+function bibmet_normalize_select_value($value, $placeholder)
+{
+    return $value === $placeholder ? null : $value;
+}
+
+// Parse legacy organisation labels rendered as "Name [Country]".
+function bibmet_parse_org_label($label)
+{
+    $pos_f = strpos($label, '[');
+    $pos_e = strpos($label, ']');
+
+    if ($pos_f === false || $pos_e === false || $pos_e <= $pos_f) {
+        return [trim($label), ""];
+    }
+
+    return [trim(substr($label, 0, $pos_f)), trim(substr($label, $pos_f + 1, $pos_e - $pos_f - 1))];
+}
+
+// Check whether a legacy organisation select has a real selected value.
+function bibmet_has_org_value($value)
+{
+    $value = trim((string) $value);
+    return $value !== "" && $value !== "Ange organisation";
+}
+
+// Resolve a legacy organisation label to Unified_org_id.
+function bibmet_find_org_id(PDO $dbh, $label)
+{
+    [$name, $country] = bibmet_parse_org_label($label);
+    if ($name === "") {
+        return null;
+    }
+
+    if ($country !== "") {
+        $stmt = $dbh->prepare("SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = :name AND Country_name = :country");
+        $stmt->bindValue(':country', $country, PDO::PARAM_STR);
+    } else {
+        $stmt = $dbh->prepare("SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = :name");
+    }
+
+    $stmt->bindValue(':name', $name, PDO::PARAM_STR);
+    $stmt->execute();
+    $value = $stmt->fetchColumn();
+
+    return $value === false ? null : (int) $value;
+}
+
 // Show an empty value consistently in read-only summaries.
 function bibmet_display_value($value)
 {
