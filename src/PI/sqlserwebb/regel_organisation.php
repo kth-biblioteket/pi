@@ -1,160 +1,146 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+$dbh = bibmet_sqlsrv_connect_or_redirect();
 
+$errors = [];
+$countryOptions = "";
+
+try {
+    $stmt = $dbh->query("SELECT Display_name FROM country ORDER BY Display_name");
+
+    foreach ($stmt as $row) {
+        $displayName = bibmet_h($row["Display_name"]);
+        $countryOptions .= "\n<option value=\"{$displayName}\">{$displayName}</option>";
+    }
+} catch (PDOException $e) {
+    $errors[] = "Det gick inte att hämta landlistan. " . $e->getMessage();
+}
+?>
+
+<!DOCTYPE html>
+<html lang="sv">
 <! Författare: Cecilia Wiklander>
 <! Syfte: Adressrättnings-hantering>
 <! Ändringar: >
-    
 <head>
-
     <meta charset="utf-8">
-
-    <title>REGLER ORGANISATION</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Regler organisation</title>
     <link href="Site_utan_storlek.css" rel="stylesheet">
-
-<script>
-
-    function f_populera_Land() {
-        // Populera
-        var e = document.getElementById("id_country");
-        landlista = [];
-        land_test = "";
-        var x_antal = document.getElementById("id_country").length;
-        var e = document.getElementById("id_country");
-        for (i = 0; i < x_antal; i++) {
-            land_test = e.options[i].text;
-            landlista.push(land_test);
-        }
-        // Sökfälten Land
-        document.getElementById("id_soek_land_s").value = "*";
-        var soeklista = document.getElementById("id_s_land");
-        var laengd = soeklista.length;
-        for (i = 1; i < laengd; i++) {
-            soeklista.remove(1);
-        }
-        var soeklista = document.getElementById("id_s_land");
-        for (var i = 0; i < landlista.length; i++) {
-            var opt = landlista[i];
-            var el = document.createElement("option");
-            el.textContent = opt;
-            el.value = opt;
-            soeklista.appendChild(el);
-        }
-    }
-
-    function f_populera_soek_Land_S() {
-        var v_text = document.getElementById("id_soek_land_s").value;
-        if (v_text > "") {
-            var soeklista = document.getElementById("id_s_land");
-            var laengd = soeklista.length;
-            for (i = 1; i < laengd; i++) {
-                soeklista.remove(1);
-            }
-            // Skapa landlista utan urval
-            if (v_text == "*") {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    var el = document.createElement("option");
-                    el.textContent = opt;
-                    el.value = opt;
-                    soeklista.appendChild(el);
-                }
-            }
-            // Skapa landlista med urval
-            else {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    if (opt.toUpperCase().indexOf(v_text.toUpperCase()) > -1) {
-                        var el = document.createElement("option");
-                        el.textContent = opt;
-                        el.value = opt;
-                        soeklista.appendChild(el);
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    function f_Ladda_sida() {
-        f_populera_Land();
-        document.getElementById("id_soek_land_s").value = "*";
-    }
-
-</script>
-
+    <link href="vendor/tom-select/tom-select.css" rel="stylesheet">
+    <?php include("include_bibmet_kth.html"); ?>
+    <script src="vendor/tom-select/tom-select.complete.min.js"></script>
+    <script src="bibmet-selects.js"></script>
 </head>
 
-<body onload="f_Ladda_sida()">
+<body class="bibmet-body">
+    <?php include("include_head_new.html"); ?>
 
-<?php include('include_head_new.html'); ?>
+    <main class="bibmet-main bibmet-main--form">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Adressrättningsregler</p>
+                    <h1 class="bibmet-title">Regler organisation</h1>
+                    <p class="bibmet-muted">
+                        Sök, skapa och granska regler för organisationsmatchning.
+                    </p>
+                </div>
+                <a
+                    href="adressmeny.php"
+                    class="bibmet-button bibmet-button--secondary">
+                    Till menyn
+                </a>
+            </div>
+        </section>
 
-<?php
+        <?php if ($errors) : ?>
+            <div class="bibmet-alert" role="alert">
+                <?php foreach ($errors as $error) : ?>
+                    <p><?php echo bibmet_h($error); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
-    $username = $_SESSION['anv'];
-    $password = $_SESSION['ord'];
-    $hostname = $_SESSION['hnamn'];
-    $dbname = $_SESSION['dbnamn'];
+        <form action="visa_regler_o.php" method="get" class="bibmet-panel">
+            <div class="bibmet-panel__header">
+                <h2 class="bibmet-panel__title">Sökurval</h2>
+                <p class="bibmet-muted">Ange ett eller flera fält för att hitta organisationsregler.</p>
+            </div>
 
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
+            <div class="bibmet-form-grid">
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Regelid</span>
+                    <input
+                        type="text"
+                        name="Regelid"
+                        class="bibmet-input bibmet-input--short"
+                        inputmode="numeric">
+                </label>
 
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Land</span>
+                    <select
+                        id="id_s_land"
+                        name="Land"
+                        class="bibmet-select js-bibmet-select">
+                        <option value="">Ange land</option>
+                        <?php echo $countryOptions; ?>
+                    </select>
+                </label>
 
-	// Write out our query.
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Stad</span>
+                    <input
+                        type="text"
+                        name="Stad"
+                        class="bibmet-input">
+                </label>
 
-	$query = "SELECT Display_name FROM country";
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Organisation</span>
+                    <input
+                        type="text"
+                        name="Org"
+                        class="bibmet-input">
+                </label>
+            </div>
 
-	// Execute it, or let it throw an error message if there's a problem.
-
-	$stmt = $dbh->query( $query );
-
-    $dropdown = "<select name='country' hidden id='id_country'>";
-
-	foreach ($stmt as $row) {
-
-    $dropdown .= "\r\n<option value='{$row['Display_name']}'>{$row['Display_name']}</option>";
-
-	}
-
-	$dropdown .= "\r\n</select>";
-
-	echo $dropdown;
-
-?>
-
-<h2>REGLER ORGANISATION</h2>
-
-<form action="visa_regler_o.php" method="post">
-
-<input type="submit" name="soek" value="Sök regel"/>&nbsp;&nbsp;
-<input type="submit" formaction="ny_regel_o.php" name="ny" value="Ny regel"/>&nbsp;&nbsp;
-<input type="submit" formaction="regler_o_utan.php" name="utan" value="Regel utan träff"/>&nbsp;&nbsp;
-<input type="submit" formaction="splittringsdubbletter.php" name="splittra" value="Dubblettsplittrande regler"/>&nbsp;&nbsp;
-<a href='adressmeny.php'>TILL MENYN</a>
- 
-<br /><br />
-
-<h3>SÖKURVAL</h3>
-
-Regelid: <br />
-<input type="text" name="Regelid" size="10" /><br /><br />
-Land: <br />
-<select id="id_s_land" name="Land">
-    <option>Ange land</option>
-</select>
-&nbsp;<input type="text" name="Soek_land_s" id="id_soek_land_s" size="20" onchange="f_populera_soek_Land_S()"/>
-<br /><br />
-Stad: <br />
-<input type="text" name="Stad" size="70" /><br /><br />
-Organisation: <br />
-<input type="text" name="Org" size="70" />
-<br /><br />
-
-</form>
-
+            <div class="bibmet-form-actions">
+                <button
+                    type="submit"
+                    name="soek"
+                    class="bibmet-button bibmet-button--primary">
+                    Sök regel
+                </button>
+                <div class="bibmet-action-group">
+                    <button
+                        type="submit"
+                        formaction="ny_regel_o.php"
+                        name="ny"
+                        class="bibmet-button bibmet-button--secondary">
+                        Ny regel
+                    </button>
+                    <button
+                        type="submit"
+                        formaction="regler_o_utan.php"
+                        name="utan"
+                        class="bibmet-button bibmet-button--secondary">
+                        Regel utan träff
+                    </button>
+                    <button
+                        type="submit"
+                        formaction="splittringsdubbletter.php"
+                        name="splittra"
+                        class="bibmet-button bibmet-button--secondary">
+                        Dubblettsplittrande regler
+                    </button>
+                </div>
+            </div>
+        </form>
+    </main>
 </body>
+
 </html>

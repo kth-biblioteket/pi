@@ -1,215 +1,324 @@
-<?php session_start(); ?>
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
-
-<! Författare: Cecilia Wiklander>
-<! Syfte: Adressrättnings-hantering>
-<! Ändringar: >
-
-<head>
-
-    <meta charset="utf-8">
-
-    <title>VISA REGLER FULL ADRESS</title>
-
-    <link href="Site.css" rel="stylesheet">
-
-</head>
-
-<body>
-
-<?php include('include_head_new.html'); ?>
-
-<h2>VISA REGLER FULL ADRESS</h2>
-
-<a href='regel_full_adress.php'>TILL SÖKNING</a>
-</br>
-</br>
-
 <?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
-    $land = $_POST['Land'];
-    $stad = $_POST['Stad'];
-    $org_s_1 = $_POST['Org_str_1'];
-    $org_s_2 = $_POST['Org_str_2'];
-    $org_s_3 = $_POST['Org_str_3'];
-    $org_s_n_1 = $_POST['Org_str_not_1'];
-    $org_s_n_2 = $_POST['Org_str_not_2'];
-    $regelid = $_POST['Regelid'];
+$dbh = bibmet_sqlsrv_connect_or_redirect();
 
-    $username = $_SESSION['anv'];
-    $password = $_SESSION['ord'];
-    $hostname = $_SESSION['hnamn'];
-    $dbname = $_SESSION['dbnamn'];
+$land = bibmet_request_value("Land");
+$stad = bibmet_request_value("Stad");
+$orgStr1 = bibmet_request_value("Org_str_1");
+$orgStr2 = bibmet_request_value("Org_str_2");
+$orgStr3 = bibmet_request_value("Org_str_3");
+$orgStrNot1 = bibmet_request_value("Org_str_not_1");
+$orgStrNot2 = bibmet_request_value("Org_str_not_2");
+$regelid = bibmet_request_value("Regelid");
+$page = max(1, (int) bibmet_request_value("page", "1"));
+$pageSize = 50;
+$offset = ($page - 1) * $pageSize;
+$errors = [];
+$rows = [];
+$totalRows = 0;
+$totalPages = 1;
 
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
+$whereParts = [];
+$params = [];
 
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-    $Sk = "'";
-    $Ers = "''";
-
-    $stad = str_replace($Sk, $Ers, $stad);
-    $org_s_1 = str_replace($Sk, $Ers, $org_s_1);
-    $org_s_2 = str_replace($Sk, $Ers, $org_s_2);
-    $org_s_3 = str_replace($Sk, $Ers, $org_s_3);
-    $org_s_n_1 = str_replace($Sk, $Ers, $org_s_n_1);
-    $org_s_n_2 = str_replace($Sk, $Ers, $org_s_n_2);
-    $land = str_replace($Sk, $Ers, $land);
-
-    $sqldel = "";
-
-    $sql = "SELECT R_f_a_m_id,Rule_date,Find_country,Find_city,Find_str_1,Find_str_2,Find_str_3,Find_str_not_1,Find_str_not_2,Divide,Country_1,City_1,Org_id_1,
-    (SELECT Name_en + ' [' + Country_name + ']' FROM Unified_org_names WHERE Unified_org_id = Org_id_1) AS Org_1,    
-    Country_2,City_2,Org_id_2,
-    (SELECT Name_en + ' [' + Country_name + ']' FROM Unified_org_names WHERE Unified_org_id = Org_id_2) AS Org_2,    
-    Country_3,City_3,Org_id_3,
-    (SELECT Name_en + ' [' + Country_name + ']' FROM Unified_org_names WHERE Unified_org_id = Org_id_3) AS Org_3     
-    FROM Rule_full_address_match WHERE ";
-     
-    if (strlen($regelid) > 0) 
-    {
-	$sqldel .= "R_f_a_m_id = " . $regelid;
+if ($regelid !== "") {
+    if (ctype_digit($regelid)) {
+        $whereParts[] = "R_f_a_m_id = :regelid";
+        $params[":regelid"] = (int) $regelid;
+    } else {
+        $errors[] = "Regelid måste vara ett heltal.";
+        $whereParts[] = "1 = 0";
     }
-    else 
-    {
-
-    if ($land <> 'Ange land')
-    {
-        $sqldel .= "Country_code IN (SELECT Country_code FROM Country WHERE Display_name = '" . $land . "')";
-    }
-    if (strlen($stad) > 0)
-    {
-        if (strlen($sqldel) > 0)
-    	{
-    		$sqldel .= " AND upper(Find_city) like upper('%$stad%')";
-    	}	
-        else
-        {
-		$sqldel .= " upper(Find_city) like upper('%$stad%')";    
-        }
+} else {
+    if ($land !== "" && $land !== "Ange land") {
+        $whereParts[] = "Country_code IN (
+            SELECT Country_code
+            FROM Country
+            WHERE Display_name = :land
+        )";
+        $params[":land"] = $land;
     }
 
-    if (strlen($org_s_1) > 0)
-    {
-        if (strlen($sqldel) > 0)
-    	{
-    		$sqldel .= " AND upper(Find_str_1) like upper('%$org_s_1%')";
-    	}	
-        else
-        {
-		$sqldel .= " upper(Find_str_1) like upper('%$org_s_1%')";        
-        }
+    if ($stad !== "") {
+        $whereParts[] = "UPPER(Find_city) LIKE UPPER(:stad)";
+        $params[":stad"] = "%" . $stad . "%";
     }
 
-    if (strlen($org_s_2) > 0)
-    {
-        if (strlen($sqldel) > 0)
-    	{
-    		$sqldel .= " AND upper(Find_str_2) like upper('%$org_s_2%')";
-    	}	
-        else
-        {
-		$sqldel .= " upper(Find_str_2) like upper('%$org_s_2%')";        
-        }
+    if ($orgStr1 !== "") {
+        $whereParts[] = "UPPER(Find_str_1) LIKE UPPER(:orgStr1)";
+        $params[":orgStr1"] = "%" . $orgStr1 . "%";
     }
 
-    if (strlen($org_s_3) > 0)
-    {
-        if (strlen($sqldel) > 0)
-    	{
-    		$sqldel .= " AND upper(Find_str_3) like upper('%$org_s_3%')";
-    	}	
-        else
-        {
-		$sqldel .= " upper(Find_str_3) like upper('%$org_s_3%')";        
-        }
+    if ($orgStr2 !== "") {
+        $whereParts[] = "UPPER(Find_str_2) LIKE UPPER(:orgStr2)";
+        $params[":orgStr2"] = "%" . $orgStr2 . "%";
     }
 
-    if (strlen($org_s_n_1) > 0)
-    {
-        if (strlen($sqldel) > 0)
-        {
-            $sqldel .= " AND upper(Find_str_not_1) like upper('%$org_s_n_1%')";
-        }	
-        else
-        {
-        $sqldel .= " upper(Find_str_not_1) like upper('%$org_s_n_1%')";        
-        }
+    if ($orgStr3 !== "") {
+        $whereParts[] = "UPPER(Find_str_3) LIKE UPPER(:orgStr3)";
+        $params[":orgStr3"] = "%" . $orgStr3 . "%";
     }
 
-    if (strlen($org_s_n_2) > 0)
-    {
-        if (strlen($sqldel) > 0)
-        {
-            $sqldel .= " AND upper(Find_str_not_2) like upper('%$org_s_n_2%')";
-        }	
-        else
-        {
-        $sqldel .= " upper(Find_str_not_2) like upper('%$org_s_n_2%')";        
-        }
+    if ($orgStrNot1 !== "") {
+        $whereParts[] = "UPPER(Find_str_not_1) LIKE UPPER(:orgStrNot1)";
+        $params[":orgStrNot1"] = "%" . $orgStrNot1 . "%";
     }
 
-    if (strlen($sqldel) == 0)
-    {
-    	$sqldel .= "1=1";        
+    if ($orgStrNot2 !== "") {
+        $whereParts[] = "UPPER(Find_str_not_2) LIKE UPPER(:orgStrNot2)";
+        $params[":orgStrNot2"] = "%" . $orgStrNot2 . "%";
+    }
+}
+
+$whereSql = $whereParts ? implode(" AND ", $whereParts) : "1 = 1";
+
+$baseSelectSql = "
+    SELECT
+        R_f_a_m_id,
+        Rule_date,
+        Find_country,
+        Find_city,
+        Find_str_1,
+        Find_str_2,
+        Find_str_3,
+        Find_str_not_1,
+        Find_str_not_2,
+        Divide,
+        Country_1,
+        City_1,
+        Org_id_1,
+        (
+            SELECT Name_en + ' [' + Country_name + ']'
+            FROM Unified_org_names
+            WHERE Unified_org_id = Org_id_1
+        ) AS Org_1,
+        Country_2,
+        City_2,
+        Org_id_2,
+        (
+            SELECT Name_en + ' [' + Country_name + ']'
+            FROM Unified_org_names
+            WHERE Unified_org_id = Org_id_2
+        ) AS Org_2,
+        Country_3,
+        City_3,
+        Org_id_3,
+        (
+            SELECT Name_en + ' [' + Country_name + ']'
+            FROM Unified_org_names
+            WHERE Unified_org_id = Org_id_3
+        ) AS Org_3
+";
+
+$selectSql = "
+    SELECT *
+    FROM (
+        SELECT
+            page_source.*,
+            ROW_NUMBER() OVER (ORDER BY R_f_a_m_id DESC) AS row_number
+        FROM (
+            $baseSelectSql
+            FROM Rule_full_address_match
+            WHERE $whereSql
+        ) AS page_source
+    ) AS numbered_results
+    WHERE row_number BETWEEN :firstPageRow AND :lastPageRow
+    ORDER BY row_number
+";
+
+try {
+    $countStmt = $dbh->prepare("SELECT COUNT(*) FROM Rule_full_address_match WHERE $whereSql");
+    foreach ($params as $key => $value) {
+        $countStmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+    }
+    $countStmt->execute();
+    $totalRows = (int) $countStmt->fetchColumn();
+    $totalPages = max(1, (int) ceil($totalRows / $pageSize));
+
+    if ($page > $totalPages) {
+        $page = $totalPages;
+        $offset = ($page - 1) * $pageSize;
     }
 
+    $stmt = $dbh->prepare($selectSql);
+    foreach ($params as $key => $value) {
+        $stmt->bindValue($key, $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
     }
+    $stmt->bindValue(":firstPageRow", $offset + 1, PDO::PARAM_INT);
+    $stmt->bindValue(":lastPageRow", $offset + $pageSize, PDO::PARAM_INT);
+    $stmt->execute();
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $errors[] = "Det gick inte att hämta reglerna. " . $e->getMessage();
+}
 
-    $sql .= $sqldel;
+$firstRow = $totalRows === 0 ? 0 : $offset + 1;
+$lastRow = min($offset + $pageSize, $totalRows);
+$filters = [];
 
-	// Execute it, or let it throw an error message if there's a problem.
+if ($regelid !== "") {
+    $filters[] = "Regelid: " . $regelid;
+} else {
+    if ($land !== "" && $land !== "Ange land") {
+        $filters[] = "Land: " . $land;
+    }
+    if ($stad !== "") {
+        $filters[] = "Stad: " . $stad;
+    }
+    if ($orgStr1 !== "") {
+        $filters[] = "Söksträng 1: " . $orgStr1;
+    }
+    if ($orgStr2 !== "") {
+        $filters[] = "Söksträng 2: " . $orgStr2;
+    }
+    if ($orgStr3 !== "") {
+        $filters[] = "Söksträng 3: " . $orgStr3;
+    }
+    if ($orgStrNot1 !== "") {
+        $filters[] = "Söksträng ej 1: " . $orgStrNot1;
+    }
+    if ($orgStrNot2 !== "") {
+        $filters[] = "Söksträng ej 2: " . $orgStrNot2;
+    }
+}
 
-    //echo $sql;
-
-	$stmt = $dbh->query( $sql );
-
-	echo "<table border='1'>";
-
-	// Rubrikerna
-	echo "<tr>";
-	echo "<th>Ändra</th> <th>Ta bort</th><th>Land</th> <th>Stad</th> 
-        <th>Söksträng 1</th> <th>Söksträng 2</th> <th>Söksträng 3</th> <th>Söksträng ej 1</th> <th>Söksträng ej 2</th> <th>Delas</th>  
-        <th>Land 1</th> <th>Stad 1</th> <th>Org_id 1</th> <th>Org 1</th> <th>Land 2</th> <th>Stad 2</th> <th>Org_id 2</th> <th>Org 2</th> 
-        <th>Land 3</th> <th>Stad 3</th> <th>Org_id 3</th> <th>Org 3</th> <th>Regelid</th> <th>Datum</th>";
-	echo "</tr>";
-		 
-	// Lägg ut resultatet
-	foreach ($stmt as $row) {
-			echo "<tr>";
-			echo "<td><a href=aendra_regel_f_a.php?Regel_id=" . $row['R_f_a_m_id'] . ">ÄNDRA</a></td>";
-			echo "<td><a href=ta_bort_regel_f_a.php?Regel_id=" . $row['R_f_a_m_id'] . ">TA BORT</a></td>";  
-			echo "<td style = 'white-space:PRE'>" . $row['Find_country'] . "</td>";
-			echo "<td style = 'white-space:PRE'>" . $row['Find_city'] . "</td>";
-			echo "<td style = 'white-space:PRE'>" . $row['Find_str_1'] . "</td>"; 
-			echo "<td style = 'white-space:PRE'>" . $row['Find_str_2'] . "</td>"; 
-			echo "<td style = 'white-space:PRE'>" . $row['Find_str_3'] . "</td>"; 
-			echo "<td style = 'white-space:PRE'>" . $row['Find_str_not_1'] . "</td>"; 
-			echo "<td style = 'white-space:PRE'>" . $row['Find_str_not_2'] . "</td>";                                                        
-			echo "<td>" . $row['Divide'] . "</td>";
-			echo "<td style = 'white-space:PRE'>" . $row['Country_1'] . "</td>";
-			echo "<td style = 'white-space:PRE'>" . $row['City_1'] . "</td>";
-			echo "<td>" . $row['Org_id_1'] . "</td>"; 
-            		echo "<td style = 'white-space:PRE'>" . $row['Org_1'] . "</td>";                    
-			echo "<td style = 'white-space:PRE'>" . $row['Country_2'] . "</td>";
-			echo "<td style = 'white-space:PRE'>" . $row['City_2'] . "</td>";
-			echo "<td>" . $row['Org_id_2'] . "</td>";
-            		echo "<td style = 'white-space:PRE'>" . $row['Org_2'] . "</td>"; 
-			echo "<td style = 'white-space:PRE'>" . $row['Country_3'] . "</td>";        
-			echo "<td style = 'white-space:PRE'>" . $row['City_3'] . "</td>";
-			echo "<td>" . $row['Org_id_3'] . "</td>";
-            		echo "<td style = 'white-space:PRE'>" . $row['Org_3'] . "</td>";      
-           		echo "<td>" . $row['R_f_a_m_id'] . "</td>";  
-           		echo "<td>" . $row['Rule_date'] . "</td>";                                                                                            						
-			echo "</tr>";
-	}
-
-	echo "</table>";
-	echo "<br /><br /><br />";
-
+$columns = [
+    "Land" => "Find_country",
+    "Stad" => "Find_city",
+    "Söksträng 1" => "Find_str_1",
+    "Söksträng 2" => "Find_str_2",
+    "Söksträng 3" => "Find_str_3",
+    "Söksträng ej 1" => "Find_str_not_1",
+    "Söksträng ej 2" => "Find_str_not_2",
+    "Delas" => "Divide",
+    "Land 1" => "Country_1",
+    "Stad 1" => "City_1",
+    "Org-id 1" => "Org_id_1",
+    "Org 1" => "Org_1",
+    "Land 2" => "Country_2",
+    "Stad 2" => "City_2",
+    "Org-id 2" => "Org_id_2",
+    "Org 2" => "Org_2",
+    "Land 3" => "Country_3",
+    "Stad 3" => "City_3",
+    "Org-id 3" => "Org_id_3",
+    "Org 3" => "Org_3",
+    "Regelid" => "R_f_a_m_id",
+    "Datum" => "Rule_date",
+];
 ?>
 
-</body>
+<!DOCTYPE html>
+<html lang="sv">
+<! Författare: Cecilia Wiklander>
+    <! Syfte: Adressrättnings-hantering>
+        <! Ändringar:>
+
+            <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1">
+                <title>Visa regler full adress</title>
+                <link href="Site.css" rel="stylesheet">
+                <?php include("include_bibmet_kth.html"); ?>
+            </head>
+
+            <body class="bibmet-body">
+                <?php include("include_head_new.html"); ?>
+
+                <main class="bibmet-main">
+                    <section class="bibmet-hero">
+                        <div class="bibmet-hero__row">
+                            <div>
+                                <p class="bibmet-eyebrow">Adressrättningsregler</p>
+                                <h1 class="bibmet-title">Visa regler full adress</h1>
+                                <p class="bibmet-muted">
+                                    <?php if ($filters) : ?>
+                                        Filtrerat på <?php echo bibmet_h(implode(", ", $filters)); ?>.
+                                    <?php else : ?>
+                                        Visar alla fulladressregler.
+                                    <?php endif; ?>
+                                </p>
+                            </div>
+                            <a href="regel_full_adress.php" class="bibmet-button bibmet-button--primary">Till sökning</a>
+                        </div>
+                    </section>
+
+                    <?php if ($errors) : ?>
+                        <div class="bibmet-alert" role="alert">
+                            <?php foreach ($errors as $error) : ?>
+                                <p><?php echo bibmet_h($error); ?></p>
+                            <?php endforeach; ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <section class="bibmet-panel">
+                        <div class="bibmet-result-header">
+                            <div>
+                                <h2 class="bibmet-panel__title">Sökresultat</h2>
+                                <p class="bibmet-muted">
+                                    Visar <?php echo bibmet_h($firstRow); ?>-<?php echo bibmet_h($lastRow); ?> av <?php echo bibmet_h($totalRows); ?> regler.
+                                </p>
+                            </div>
+                            <p class="bibmet-page-pill">
+                                Sida <?php echo bibmet_h($page); ?> av <?php echo bibmet_h($totalPages); ?>
+                            </p>
+                        </div>
+
+                        <div class="bibmet-table-scroll-top-wrap">
+                            <div id="rules-scroll-top" class="bibmet-scrollbar bibmet-scroll-top">
+                                <div id="rules-scroll-spacer" class="bibmet-scroll-spacer"></div>
+                            </div>
+                        </div>
+
+                        <div id="rules-table-scroll" class="bibmet-scrollbar bibmet-table-wrap">
+                            <table id="rules-table" class="bibmet-table">
+                                <thead>
+                                    <tr>
+                                        <th class="bibmet-table__actions">Åtgärder</th>
+                                        <?php foreach ($columns as $label => $key) : ?>
+                                            <th><?php echo bibmet_h($label); ?></th>
+                                        <?php endforeach; ?>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (!$rows) : ?>
+                                        <tr>
+                                            <td colspan="<?php echo bibmet_h(count($columns) + 1); ?>" class="bibmet-empty">
+                                                Inga regler matchar sökningen.
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+
+                                    <?php foreach ($rows as $row) : ?>
+                                        <tr>
+                                            <td class="bibmet-table__actions">
+                                                <div class="bibmet-table__action-row">
+                                                    <a
+                                                        href="aendra_regel_f_a.php?Regel_id=<?php echo bibmet_h($row["R_f_a_m_id"]); ?>"
+                                                        class="bibmet-button bibmet-button--primary bibmet-button--small">
+                                                        Ändra
+                                                    </a>
+                                                    <a
+                                                        href="ta_bort_regel_f_a.php?Regel_id=<?php echo bibmet_h($row["R_f_a_m_id"]); ?>"
+                                                        class="bibmet-button bibmet-button--danger bibmet-button--small">
+                                                        Ta bort
+                                                    </a>
+                                                </div>
+                                            </td>
+                                            <?php foreach ($columns as $key) : ?>
+                                                <td><?php echo bibmet_h($row[$key] ?? ""); ?></td>
+                                            <?php endforeach; ?>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <?php bibmet_render_pagination($page, $totalPages); ?>
+                    </section>
+                </main>
+            </body>
+
 </html>

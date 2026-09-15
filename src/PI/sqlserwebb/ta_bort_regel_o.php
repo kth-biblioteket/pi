@@ -1,192 +1,155 @@
-﻿<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
-<!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+$dbh = bibmet_sqlsrv_connect_or_redirect();
+
+$regel_id = bibmet_request_value('Regel_id');
+$errors = [];
+$rule = null;
+
+if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
+    $errors[] = "Ogiltigt regel-id.";
+} else {
+    $_SESSION['regel_id'] = $regel_id;
+
+    try {
+        $sql = "SELECT r.R_o_m_id, r.Find_country, r.Country_code, r.Find_city, r.Find_org, r.Divide,
+            r.Country_1, r.City_1, o1.Name_en + ' [' + o1.Country_name + ']' AS Orgname_1,
+            r.Country_2, r.City_2, o2.Name_en + ' [' + o2.Country_name + ']' AS Orgname_2,
+            r.Country_3, r.City_3, o3.Name_en + ' [' + o3.Country_name + ']' AS Orgname_3,
+            r.Org_id_1, r.Org_id_2, r.Org_id_3, r.User_id, r.Rule_date, r.Valid_from, r.Valid_to
+            FROM rule_org_match r
+            JOIN unified_org_names o1 ON r.Org_id_1 = o1.Unified_org_id
+            LEFT JOIN unified_org_names o2 ON r.Org_id_2 = o2.Unified_org_id
+            LEFT JOIN unified_org_names o3 ON r.Org_id_3 = o3.Unified_org_id
+            WHERE r.R_o_m_id = :regel_id";
+        $stmt = $dbh->prepare($sql);
+        $stmt->bindValue(':regel_id', (int) $regel_id, PDO::PARAM_INT);
+        $stmt->execute();
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$rule) {
+            $errors[] = "Regeln hittades inte.";
+        } else {
+            $_SESSION['land_s'] = $rule['Find_country'];
+            $_SESSION['land_1'] = $rule['Country_1'];
+            $_SESSION['land_2'] = $rule['Country_2'];
+            $_SESSION['land_3'] = $rule['Country_3'];
+            $_SESSION['stad_s'] = $rule['Find_city'];
+            $_SESSION['stad_1'] = $rule['City_1'];
+            $_SESSION['stad_2'] = $rule['City_2'];
+            $_SESSION['stad_3'] = $rule['City_3'];
+            $_SESSION['org_s'] = $rule['Find_org'];
+            $_SESSION['delas'] = $rule['Divide'];
+            $_SESSION['org_id_1'] = $rule['Org_id_1'];
+            $_SESSION['org_id_2'] = $rule['Org_id_2'];
+            $_SESSION['org_id_3'] = $rule['Org_id_3'];
+            $_SESSION['land_kod'] = $rule['Country_code'];
+            $_SESSION['r_o_m_id'] = $rule['R_o_m_id'];
+            $_SESSION['user_id'] = $rule['User_id'];
+            $_SESSION['rule_date'] = $rule['Rule_date'];
+            $_SESSION['fr'] = $rule['Valid_from'];
+            $_SESSION['ti'] = $rule['Valid_to'];
+        }
+    } catch (PDOException $e) {
+        $errors[] = "Det gick inte att hämta regeln. " . $e->getMessage();
+    }
+}
+
+function render_readonly_field($label, $value)
+{
+    ?>
+    <label class="bibmet-field">
+        <span class="bibmet-field__label"><?php echo bibmet_h($label); ?></span>
+        <input class="bibmet-input" type="text" value="<?php echo bibmet_h($value); ?>" disabled>
+    </label>
+    <?php
+}
+?>
+
+<!DOCTYPE html>
+<html lang="sv">
 
 <! Författare: Cecilia Wiklander>
 <! Syfte: Adressrättnings-hantering>
 <! Ändringar: >
 
 <head>
-
     <meta charset="utf-8">
-
-    <title>TA BORT REGEL ORGANISATION</title>
-	
-    <link href="Site_utan_storlek.css" rel="stylesheet"> 
-
-<script>
-
-    function validateForm() {
-        var y = document.forms["taBort"]["Orsak"].value;
-        if (y == "") {
-            alert("Orsak måste anges!");
-            return false;
-        }
-    }
-        
-</script>
-	
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ta bort regel organisation</title>
+    <link href="Site.css" rel="stylesheet">
+    <?php include("include_bibmet_kth.html"); ?>
 </head>
 
-<body>
+<body class="bibmet-body">
+    <?php include('include_head_new.html'); ?>
 
-<?php include('include_head_new.html'); ?>
+    <main class="bibmet-main">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Adressrättningsregler</p>
+                    <h1 class="bibmet-title">Ta bort regel organisation</h1>
+                    <p class="bibmet-muted">Granska regeln och ange orsak innan borttagning.</p>
+                </div>
+                <div class="bibmet-action-group">
+                    <a href="regel_organisation.php" class="bibmet-button bibmet-button--secondary">Till sökning</a>
+                    <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
+                </div>
+            </div>
+        </section>
 
-<?php
-    
-    $regel_id = $_GET["Regel_id"];
+        <?php if ($errors) : ?>
+            <div class="bibmet-alert" role="alert">
+                <?php foreach ($errors as $error) : ?>
+                    <p><?php echo bibmet_h($error); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
-    if (intval($regel_id) > 0) {
+        <?php if ($rule) : ?>
+            <form action="ta_bort_regel_resultat_o.php" method="post" class="bibmet-panel">
+                <input type="hidden" name="Regel_id" value="<?php echo bibmet_h($regel_id); ?>">
+                <div class="bibmet-panel__header">
+                    <h2 class="bibmet-panel__title">Bekräfta borttagning</h2>
+                </div>
 
-        $_SESSION['regel_id'] = $regel_id;
+                <div class="bibmet-form-grid bibmet-form-grid--compact">
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Orsak</span>
+                        <input class="bibmet-input" type="text" name="orsak" maxlength="100" required>
+                    </label>
+                    <?php render_readonly_field('Regel-id', $rule['R_o_m_id']); ?>
+                    <?php render_readonly_field('Land', $rule['Find_country']); ?>
+                    <?php render_readonly_field('Stad', $rule['Find_city']); ?>
+                    <?php render_readonly_field('Organisation', $rule['Find_org']); ?>
+                    <?php render_readonly_field('Delas i', $rule['Divide']); ?>
+                    <?php render_readonly_field('Gäller från', $rule['Valid_from']); ?>
+                    <?php render_readonly_field('Gäller till', $rule['Valid_to']); ?>
+                </div>
 
-        $username = $_SESSION['anv'];
-        $password = $_SESSION['ord'];
-        $hostname = $_SESSION['hnamn'];
-        $dbname = $_SESSION['dbnamn'];
+                <div class="bibmet-form-grid bibmet-form-grid--compact">
+                    <?php for ($i = 1; $i <= 3; $i++) : ?>
+                        <section class="bibmet-panel bibmet-panel--subtle">
+                            <h3 class="bibmet-panel__title">Organisation <?php echo bibmet_h($i); ?></h3>
+                            <?php render_readonly_field('Organisationsnamn', $rule['Orgname_' . $i] ?? ''); ?>
+                            <?php render_readonly_field('Land', $rule['Country_' . $i] ?? ''); ?>
+                            <?php render_readonly_field('Stad', $rule['City_' . $i] ?? ''); ?>
+                        </section>
+                    <?php endfor; ?>
+                </div>
 
-        $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
+                <div class="bibmet-form-actions">
+                    <div class="bibmet-action-group">
+                        <input type="submit" name="radera" value="Radera regel" class="bibmet-button bibmet-button--danger">
+                        <a href="regel_organisation.php" class="bibmet-button bibmet-button--secondary">Avbryt</a>
+                    </div>
+                </div>
+            </form>
+        <?php endif; ?>
+    </main>
+</body>
 
-        $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-        // Visa regeln att ta bort
-
-    	$sql = "SELECT r.R_o_m_id,r.Find_country,r.Country_code,r.Find_city,r.Find_org,r.Divide,
-        r.Country_1,r.City_1,o1.Name_en + ' [' + o1.Country_name + ']' AS Orgname_1,
-        r.Country_2,r.City_2,o2.Name_en + ' [' + o2.Country_name + ']' AS Orgname_2,
-        Country_3,City_3,o3.Name_en + ' [' + o3.Country_name + ']' AS Orgname_3,
-        r.Org_id_1,r.Org_id_2,r.Org_id_3,r.User_id,r.Rule_date,r.Valid_from,r.Valid_to 
-        FROM rule_org_match r  
-        JOIN unified_org_names o1 
-        ON r.Org_id_1 = o1.Unified_org_id  
-        LEFT JOIN unified_org_names o2 
-        ON r.Org_id_2 = o2.Unified_org_id 
-        LEFT JOIN unified_org_names o3 
-        ON r.Org_id_3 = o3.Unified_org_id 
-        WHERE R_o_m_id = " . $regel_id;
-
-        $stmt = $dbh->query( $sql );
-
-    	foreach ($stmt as $row) {
-            $land_s = $row['Find_country'];
-            $land_h_1 = $row['Country_1'];
-            $land_h_2 = $row['Country_2'];
-            $land_h_3 = $row['Country_3'];
-            $stad_s = $row['Find_city'];
-            $stad_h_1 = $row['City_1'];
-            $stad_h_2 = $row['City_2'];
-            $stad_h_3 = $row['City_3'];
-            $org_s = $row['Find_org'];
-            $org_h_1 = $row['Orgname_1'];
-            $org_h_2 = $row['Orgname_2'];
-            $org_h_3 = $row['Orgname_3'];
-            $delas = $row['Divide'];                   
-            $org_id_1 = $row['Org_id_1'];
-            $org_id_2 = $row['Org_id_2'];
-            $org_id_3 = $row['Org_id_3'];
-            $land_kod = $row['Country_code'];
-            $r_o_m_id = $row['R_o_m_id']; 
-            $user_id = $row['User_id'];
-            $rule_date = $row['Rule_date']; 
-            $fr = $row['Valid_from']; 
-            $ti = $row['Valid_to'];                                                                                                                               
-    	}
-
-        $_SESSION['land_s'] = $land_s;
-        $_SESSION['land_1'] = $land_h_1;
-        $_SESSION['land_2'] = $land_h_2;
-        $_SESSION['land_3'] = $land_h_3;
-        $_SESSION['stad_s'] = $stad_s;
-        $_SESSION['stad_1'] = $stad_h_1;
-        $_SESSION['stad_2'] = $stad_h_2;
-        $_SESSION['stad_3'] = $stad_h_3;
-        $_SESSION['org_s'] = $org_s;
-        $_SESSION['delas'] = $delas;
-        $_SESSION['org_id_1'] = $org_id_1;
-        $_SESSION['org_id_2'] = $org_id_2;
-        $_SESSION['org_id_3'] = $org_id_3;
-        $_SESSION['land_kod'] = $land_kod;
-        $_SESSION['r_o_m_id'] = $r_o_m_id;
-        $_SESSION['user_id'] = $user_id;
-        $_SESSION['rule_date'] = $rule_date;
-        $_SESSION['fr'] = $fr;
-        $_SESSION['ti'] = $ti;
-
-    }
-
-?>
-
-<h2>TA BORT REGEL ORGANISATION</h2>	
-	                                    
-		    <form action="ta_bort_regel_resultat_o.php" method="post">
-
-                <input type="submit" name="radera" value="Radera regel"/>&nbsp;&nbsp;
-                <a href='regel_organisation.php'>TILL SÖKNING</a>&nbsp;&nbsp;
-                <a href='adressmeny.php'>TILL MENYN</a>
-                <br /><br />
-
-                ORSAK:</br> 
-				<input type="text" name="orsak" maxlength="100">&nbsp;&nbsp; 
-                <br /><br />
-
-                <h3>SÖKFÄLT</h3>    
-                
-                Land:</br>
-                <input type="text" name="Land" id="id_land_s" value="<?php echo $land_s; ?>" disabled size="40" />
-                <br />
-			    Stad:</br> 
-				<input type="text" name="Stad" id="id_s_stad" value="<?php echo $stad_s; ?>" disabled size="40" />
-                <br />
-			    Organisationsnamn:</br> 
-				<input type="text" name="Organisation" id="id_s_org" value="<?php echo $org_s; ?>" disabled size="40" /><br />
-				
-				<h3>ÄNDRINGSFÄLT</h3>
-			    Delas i:</br>
-				<input type="text" name="Delas" id="id_h_delas" size="1" value="<?php echo $delas; ?>" disabled />
-
-                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-                Gäller från: 
-                <input type="text" name="Fr" id="id_fr" size="4" value="<?php echo $fr; ?>" disabled size="4" />
-                &nbsp;&nbsp;
-                till:  
-                <input type="text" name="Ti" id="id_ti" size="4" value="<?php echo $ti; ?>" disabled size="4" />
-                <br /><br />
-				
-				<b>Organisation 1:</b><br />
-				Annat organisationsnamn:<br />
-                <input type="text" name="Soek_org_h_1" id="id_soek_org_h_1" value="<?php echo $org_h_1; ?>" disabled size="40" />				
-                <br />
-			    Annat land:<br />
-                <input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" value="<?php echo $land_h_1; ?>" disabled size="40" />				
-                <br />				
-				Annan stad:<br /> 
-				<input type="text" name="Annan_stad_1" id="h_id_stad_1" value="<?php echo $stad_h_1; ?>" disabled size="40" /><br />
-				<br />
-						
-				<b>Organisation 2:</b><br />
-				Annat organisationsnamn:<br />
-                <input type="text" name="Soek_org_h_2" id="id_soek_org_h_2" value="<?php echo $org_h_2; ?>" disabled size="40" />					
-                <br />
-			    Annat land:<br />
-                <input type="text" name="Soek_land_h_2" id="id_soek_land_h_2" value="<?php echo $land_h_2; ?>" disabled size="40" />					
-				<br />
-				Annan stad:<br /> 
-				<input type="text" name="Annan_stad_2" id="h_id_stad_2" value="<?php echo $stad_h_2; ?>" disabled size="40" /><br />
-				<br />
-				
-				<b>Organisation 3:</b><br />
-				Annat organisationsnamn:<br />
-                <input type="text" name="Soek_org_h_3" id="id_soek_org_h_3" value="<?php echo $org_h_3; ?>" disabled size="40" />					
-                <br />
-			    Annat land:<br />
-                <input type="text" name="Soek_land_h_3" id="id_soek_land_h_3" value="<?php echo $land_h_3; ?>" disabled size="40" />					
-				<br />
-				Annan stad:<br /> 
-				<input type="text" name="Annan_stad_3" id="h_id_stad_3" value="<?php echo $stad_h_3; ?>" disabled size="40" /><br />
-				<br />				
-				
-		    </form>
-								
-	</body>
 </html>

@@ -1,126 +1,141 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+$dbh = bibmet_sqlsrv_connect_or_redirect('BIBMET');
+
+$errors = [];
+$runDates = [
+    'organisation' => null,
+    'centra' => null,
+    'full_address' => null,
+    'organisation_type' => null,
+];
+
+function latest_run_date(PDO $dbh, $tableName)
+{
+    $allowedTables = [
+        'rule_org_rundate',
+        'rule_center_rundate',
+        'rule_full_address_rundate',
+        'rule_org_type_rundate',
+    ];
+
+    if (!in_array($tableName, $allowedTables, true)) {
+        throw new InvalidArgumentException('Invalid run date table.');
+    }
+
+    $stmt = $dbh->query("SELECT MAX(Run_date) AS Run_date FROM {$tableName}");
+    return $stmt->fetchColumn();
+}
+
+try {
+    $runDates['organisation'] = latest_run_date($dbh, 'rule_org_rundate');
+    $runDates['centra'] = latest_run_date($dbh, 'rule_center_rundate');
+    $runDates['full_address'] = latest_run_date($dbh, 'rule_full_address_rundate');
+    $runDates['organisation_type'] = latest_run_date($dbh, 'rule_org_type_rundate');
+} catch (PDOException $e) {
+    $errors[] = 'Det gick inte att hämta senaste körningsdatum.';
+}
+
+$items = [
+    [
+        'label' => 'Organisation',
+        'value' => $runDates['organisation'],
+        'description' => 'Senaste körning av organisationsregler.',
+    ],
+    [
+        'label' => 'Centra',
+        'value' => $runDates['centra'],
+        'description' => 'Senaste körning av centrumregler.',
+    ],
+    [
+        'label' => 'Full adress',
+        'value' => $runDates['full_address'],
+        'description' => 'Senaste körning av fulladressregler.',
+    ],
+    [
+        'label' => 'Organisationstyp',
+        'value' => $runDates['organisation_type'],
+        'description' => 'Senaste körning av regler för organisationstyp.',
+    ],
+];
+?>
+
+<!DOCTYPE html>
+<html lang="sv">
 
 <! Författare: Cecilia Wiklander>
 <! Syfte: Adressrättnings-hantering>
-<! Ändringar: >
+<! Ändringar:>
 
 <head>
-
     <meta charset="utf-8">
-
-    <title>SENASTE ADRESSRÄTTNING</title>
-
-    <link href="Site_utan_storlek.css" rel="stylesheet">
-
-<script>
-
-</script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Senaste adressrättning</title>
+    <link href="Site.css" rel="stylesheet">
+    <?php include("include_bibmet_kth.html"); ?>
 </head>
 
-<body>
+<body class="bibmet-body">
+    <?php include("include_head_new.html"); ?>
 
-<?php include('include_head_new.html'); ?>
+    <main class="bibmet-main bibmet-main--form">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Kontroller</p>
+                    <h1 class="bibmet-title">Senaste adressrättning</h1>
+                    <p class="bibmet-muted">
+                        Här visas när adressreglerna senast kördes för respektive regeltyp.
+                    </p>
+                </div>
+                <a href="adressmeny.php" class="bibmet-button bibmet-button--primary">Till menyn</a>
+            </div>
+        </section>
 
-<?php
+        <?php if ($errors) : ?>
+            <div class="bibmet-alert" role="alert">
+                <?php foreach ($errors as $error) : ?>
+                    <p><?php echo bibmet_h($error); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
-    $username = $_SESSION['anv'];
-    $password = $_SESSION['ord'];
-    $hostname = $_SESSION['hnamn'];
-    //$dbname = $_SESSION['dbnamn'];
-    $dbname = "BIBMET";
+        <section class="bibmet-panel">
+            <div class="bibmet-panel__header">
+                <h2 class="bibmet-panel__title">Senaste körningar</h2>
+            </div>
+            <div class="bibmet-panel__body bibmet-menu-list">
+                <?php foreach ($items as $item) : ?>
+                    <div class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title"><?php echo bibmet_h($item['label']); ?></span>
+                        <span class="bibmet-menu-card__text"><?php echo bibmet_h($item['description']); ?></span>
+                        <p class="bibmet-page-pill" style="margin: 12px 0 0;">
+                            <?php echo $item['value'] ? bibmet_h($item['value']) : 'Inget datum registrerat'; ?>
+                        </p>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </section>
 
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
-
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-	// Write out our query.
-
-	$query = "SELECT Run_date FROM rule_center_rundate 
-    WHERE Run_date = (SELECT MAX(Run_date) FROM rule_center_rundate)";
-
-	// Execute it, or let it throw an error message if there's a problem.
-
-	$stmt = $dbh->query( $query );
-
-    foreach ($stmt as $row) {
-        $imp_dat_c = $row['Run_date'];        
-    }
-
-	$query = "SELECT Run_date FROM rule_full_address_rundate 
-    WHERE Run_date = (SELECT MAX(Run_date) FROM rule_full_address_rundate)";
-
-	// Execute it, or let it throw an error message if there's a problem.
-
-	$stmt = $dbh->query( $query );
-
-    foreach ($stmt as $row) {
-        $imp_dat_f_a = $row['Run_date'];        
-    }
-
-	$query = "SELECT Run_date FROM rule_org_rundate 
-    WHERE Run_date = (SELECT MAX(Run_date) FROM rule_org_rundate)";
-
-	// Execute it, or let it throw an error message if there's a problem.
-
-	$stmt = $dbh->query( $query );
-
-    foreach ($stmt as $row) {
-        $imp_dat_o = $row['Run_date'];        
-    }
-
-	$query = "SELECT Run_date FROM rule_org_type_rundate 
-    WHERE Run_date = (SELECT MAX(Run_date) FROM rule_org_type_rundate)";
-
-	// Execute it, or let it throw an error message if there's a problem.
-
-	$stmt = $dbh->query( $query );
-
-    foreach ($stmt as $row) {
-        $imp_dat_o_typ = $row['Run_date'];        
-    }
-
-?>
-
-<h2>SENASTE ADRESSRÄTTNING</h2>
-
-<br />
-
-<form action="senaste_koerning.php" method="post">
-
-<a href='adressmeny.php'>TILL MENYN</a>
-<br /><br /><br />
-
-Senaste adressrättning för organisation: <br />
-<input type="text" name="Improve_date_o" size="10" value="<?php echo $imp_dat_o; ?>" disabled /> 
-
-<br /><br />
-Senaste adressrättning för centra: <br />
-<input type="text" name="Improve_date_c" size="10" value="<?php echo $imp_dat_c; ?>" disabled /> 
-
-<br /><br />
-Senaste adressrättning för full adress: <br />
-<input type="text" name="Improve_date_f_a" size="10" value="<?php echo $imp_dat_f_a; ?>" disabled/> 
-
-<br /><br />
-Senaste adressrättning för organisationstyp: <br />
-<input type="text" name="Improve_date_o_typ" size="10" value="<?php echo $imp_dat_o_typ; ?>" disabled/> 
-
-<br /><br />
-
-<h3>Körningar av adressregler görs tre gånger i veckan: måndag, onsdag och fredag. Körningarna börjar klockan 18.</h3>
-
-<h3>Måndag och onsdag: alla regler utom fulladressregler körs.</h3>
-
-<h3>Fredag: alla regler körs.</h3> 
-
-<h3>Om flera regler får träff på en forskaradress, så sker en prioritering utifrån hög splittringsfaktor, senaste regeldatum, högsta regelid.</h3>
-
-</form>
-
+        <section class="bibmet-panel" style="margin-top: 24px;">
+            <div class="bibmet-panel__header">
+                <h2 class="bibmet-panel__title">Körschema</h2>
+            </div>
+            <div class="bibmet-panel__body">
+                <p class="bibmet-muted" style="margin-top: 0;">
+                    Körningar av adressregler görs tre gånger i veckan: måndag, onsdag och fredag.
+                    Körningarna börjar klockan 18.
+                </p>
+                <ul>
+                    <li>Måndag och onsdag: alla regler utom fulladressregler körs.</li>
+                    <li>Fredag: alla regler körs.</li>
+                    <li>Om flera regler får träff på en forskaradress prioriteras hög splittringsfaktor, senaste regeldatum och högsta regel-id.</li>
+                </ul>
+            </div>
+        </section>
+    </main>
 </body>
+
 </html>

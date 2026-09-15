@@ -1,42 +1,126 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
 
-<!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+bibmet_require_login();
+?>
+
+<!DOCTYPE html>
+<html lang="sv">
 
 <! Författare: Cecilia Wiklander>
 <! Syfte: Adressrättnings-hantering>
 <! Ändringar: >
-
 <head>
-
-<meta charset="utf-8">
-
-<title>MENY</title>
-
-<link href="Site.css" rel="stylesheet">
-
-<?php include('include_head_new.html'); ?>
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Meny</title>
+    <link href="Site.css" rel="stylesheet">
+    <?php include("include_bibmet_kth.html"); ?>
 </head>
 
-<body>
+<body class="bibmet-body">
+    <?php include("include_head_new.html"); ?>
 
-</br>
-<h2>MENY</h2>
+    <main class="bibmet-main">
+        <section class="bibmet-hero">
+            <div>
+                <p class="bibmet-eyebrow">Bibmet</p>
+                <h1 class="bibmet-title">Adressrättning</h1>
+                <p class="bibmet-muted">
+                    Välj arbetsflöde för regler, organisationsnamn, inläsning eller kontroller.
+                </p>
+            </div>
+        </section>
 
-<ul>
-	<li><h3><a href='regel_organisation.php'>ADRESSREGLER ORGANISATION</a></h3></li>
-	<li><h3><a href='regel_full_adress.php'>ADRESSREGLER FULL ADRESS</a></h3></li>
-	<li><h3><a href='regel_centra.php'>ADRESSREGLER CENTRA</a></h3></li>
-	<li><h3><a href='regel_organisation_typ.php'>ADRESSREGLER ORGANISATIONSTYP</a></h3></li>
-	<li><h3><a href='organisationsnamn.php'>ORGANISATIONSNAMN</a></h3></li>
-	<li><h3><a href='laddaorgregler.php'>LADDA FILER MED REGLER</a></h3></li>	
-	<li><h3><a href='senaste_koerning.php'>SENASTE ADRESSRÄTTNING</a></h3></li>
-	<li><h3><a href='https://bibliometrics.lib.kth.se/checks-bibliometrics.html'>KONTROLLER FÖR BIBLIOMETRIDATA</a></h3></li>
-</ul>
+        <section class="bibmet-menu-grid">
+            <section class="bibmet-panel">
+                <div class="bibmet-panel__header">
+                    <h2 class="bibmet-panel__title">Adressregler</h2>
+                </div>
 
-<br /> 
+                <div class="bibmet-panel__body bibmet-menu-list">
+                    <a
+                        href="regel_organisation.php"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Organisation</span>
+                        <span class="bibmet-menu-card__text">Sök och hantera organisationsregler.</span>
+                    </a>
 
+                    <a
+                        href="regel_full_adress.php"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Full adress</span>
+                        <span class="bibmet-menu-card__text">Regler för fullständiga adressmatchningar.</span>
+                    </a>
+
+                    <a
+                        href="regel_centra.php"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Centra</span>
+                        <span class="bibmet-menu-card__text">Sök och hantera centrumregler.</span>
+                    </a>
+
+                    <a
+                        href="regel_organisation_typ.php"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Organisationstyp</span>
+                        <span class="bibmet-menu-card__text">Regler som matchar organisationstyper.</span>
+                    </a>
+                </div>
+            </section>
+
+            <section class="bibmet-panel">
+                <div class="bibmet-panel__header">
+                    <h2 class="bibmet-panel__title">Data</h2>
+                </div>
+
+                <div class="bibmet-panel__body bibmet-menu-list">
+                    <a
+                        href="organisationsnamn.php"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Organisationsnamn</span>
+                        <span class="bibmet-menu-card__text">Underhåll och kontrollera organisationsnamn.</span>
+                    </a>
+
+                    <a
+                        href="laddaorgregler.php"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Ladda filer med regler</span>
+                        <span class="bibmet-menu-card__text">Importera filer som innehåller adressregler.</span>
+                    </a>
+                </div>
+            </section>
+
+            <section class="bibmet-panel">
+                <div class="bibmet-panel__header">
+                    <h2 class="bibmet-panel__title">Kontroller</h2>
+                </div>
+
+                <div class="bibmet-panel__body bibmet-menu-list">
+                    <a
+                        href="senaste_koerning.php"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Senaste adressrättning</span>
+                        <span class="bibmet-menu-card__text">Visa information från den senaste körningen.</span>
+                    </a>
+
+                    <a
+                        href="regel_ej_traeff.php"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Regler utan träff</span>
+                        <span class="bibmet-menu-card__text">Lista regler utan träff per land och regeltyp.</span>
+                    </a>
+
+                    <a
+                        href="https://bibliometrics.lib.kth.se/checks-bibliometrics.html"
+                        class="bibmet-menu-card">
+                        <span class="bibmet-menu-card__title">Kontroller för bibliometridata</span>
+                        <span class="bibmet-menu-card__text">Öppna externa kontroller för bibliometridata.</span>
+                    </a>
+                </div>
+            </section>
+        </section>
+    </main>
 </body>
+
 </html>

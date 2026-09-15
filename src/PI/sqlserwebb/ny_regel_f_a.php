@@ -1,4 +1,8 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+
+$dbh = bibmet_sqlsrv_connect_or_redirect();
+?>
 
 <!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
 "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -12,8 +16,8 @@
     <meta charset="utf-8">
 
     <title>NY REGEL FULL ADRESS</title>
-	
-    <link href="Site.css" rel="stylesheet"> 
+
+    <link href="Site.css" rel="stylesheet">
 
 <script type="text/javascript">
 
@@ -343,7 +347,7 @@
     }
 
 </script>
-	
+
 </head>
 
 <body onload="f_Ladda_sida()">
@@ -351,15 +355,12 @@
 <?php include('include_head_new.html'); ?>
 
 <?php
-    
+
     $username = $_SESSION['anv'];
     $password = $_SESSION['ord'];
     $hostname = $_SESSION['hnamn'];
     $dbname = $_SESSION['dbnamn'];
 
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
-
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
     if (isset($_POST['spara'])) {
         $land_s = $_POST['Land'];
@@ -380,18 +381,18 @@
         $org_2 = $_POST['Org_2'];
         $org_3 = $_POST['Org_3'];
 
-	$Sk = "'";
-	$Ers = "''";
+    $Sk = "'";
+    $Ers = "''";
 
-	$stad_s = str_replace($Sk, $Ers, $stad_s);
-	$str_1 = str_replace($Sk, $Ers, $str_1);
-	$str_2 = str_replace($Sk, $Ers, $str_2);
-	$str_3 = str_replace($Sk, $Ers, $str_3);
-	$str_ej_1 = str_replace($Sk, $Ers, $str_ej_1);
-	$str_ej_2 = str_replace($Sk, $Ers, $str_ej_2);
-	$stad_1 = str_replace($Sk, $Ers, $stad_1);
-	$stad_2 = str_replace($Sk, $Ers, $stad_2);
-	$stad_3 = str_replace($Sk, $Ers, $stad_3);
+    $stad_s = str_replace($Sk, $Ers, $stad_s);
+    $str_1 = str_replace($Sk, $Ers, $str_1);
+    $str_2 = str_replace($Sk, $Ers, $str_2);
+    $str_3 = str_replace($Sk, $Ers, $str_3);
+    $str_ej_1 = str_replace($Sk, $Ers, $str_ej_1);
+    $str_ej_2 = str_replace($Sk, $Ers, $str_ej_2);
+    $stad_1 = str_replace($Sk, $Ers, $stad_1);
+    $stad_2 = str_replace($Sk, $Ers, $stad_2);
+    $stad_3 = str_replace($Sk, $Ers, $stad_3);
         $org_1 = str_replace($Sk, $Ers, $org_1);
         $org_2 = str_replace($Sk, $Ers, $org_2);
         $org_3 = str_replace($Sk, $Ers, $org_3);
@@ -425,15 +426,15 @@
                     else if ($delas == 2) {
                         if ($org_2 == 'Ange organisation' || $org_3 != 'Ange organisation'){
                             echo "<script>alert('Antalet i Delas stämmer inte med antal angivna organisationer!');</script>";
-                        }  
+                        }
                         else {
-                            $koll_svar = true;                                           
+                            $koll_svar = true;
                         }
                     }
                     else if ($delas == 3) {
                         if ($org_2 == 'Ange organisation' || $org_3 == 'Ange organisation'){
                             echo "<script>alert('Antalet i Delas stämmer inte med antal angivna organisationer!');</script>";
-                        }  
+                        }
                         else {
                             $koll_svar = true;
                         }
@@ -452,19 +453,19 @@
             $pos_f = strpos($org_1, '[' );
             $pos_e = strpos($org_1, ']' );
             $org_1_o = substr($org_1, 0, $pos_f - 1);
-            $org_1_c = substr($org_1, $pos_f + 1, $pos_e - $pos_f - 1);            
-          
+            $org_1_c = substr($org_1, $pos_f + 1, $pos_e - $pos_f - 1);
+
             if (strlen($org_1_c) > 0) {
-            	$sql_org_1 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_1_o . "' AND Country_name = '" . $org_1_c . "'";
-            } 
+                $sql_org_1 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_1_o . "' AND Country_name = '" . $org_1_c . "'";
+            }
             else {
-            	$sql_org_1 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_1_o . "'";
+                $sql_org_1 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_1_o . "'";
             }
 
-	        $stmt = $dbh->query( $sql_org_1 );
-	        foreach ($stmt as $row) {
-                $org_id_1 = $row['Unified_org_id'];      
-	        }
+            $stmt = $dbh->query( $sql_org_1 );
+            foreach ($stmt as $row) {
+                $org_id_1 = $row['Unified_org_id'];
+            }
             if ($land_1 == 'Ange land') {
                 $land_1 = NULL;
             }
@@ -474,18 +475,18 @@
                    $pos_f = strpos($org_2, '[' );
                    $pos_e = strpos($org_2, ']' );
                    $org_2_o = substr($org_2, 0, $pos_f - 1);
-                   $org_2_c = substr($org_2, $pos_f + 1, $pos_e - $pos_f - 1);            
-          
+                   $org_2_c = substr($org_2, $pos_f + 1, $pos_e - $pos_f - 1);
+
                    if (strlen($org_2_c) > 0) {
-            	      $sql_org_2 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_2_o . "' AND Country_name = '" . $org_2_c . "'";
-                   } 
+                      $sql_org_2 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_2_o . "' AND Country_name = '" . $org_2_c . "'";
+                   }
                    else {
-            	      $sql_org_2 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_2_o . "'";
+                      $sql_org_2 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_2_o . "'";
                    }
 
                     $stmt = $dbh->query( $sql_org_2 );
                     foreach ($stmt as $row) {
-                        $org_id_2 = $row['Unified_org_id'];      
+                        $org_id_2 = $row['Unified_org_id'];
                     }
                 }
                 else {
@@ -501,18 +502,18 @@
                    $pos_f = strpos($org_3, '[' );
                    $pos_e = strpos($org_3, ']' );
                    $org_3_o = substr($org_3, 0, $pos_f - 1);
-                   $org_3_c = substr($org_3, $pos_f + 1, $pos_e - $pos_f - 1);            
-          
+                   $org_3_c = substr($org_3, $pos_f + 1, $pos_e - $pos_f - 1);
+
                    if (strlen($org_3_c) > 0) {
-            	      $sql_org_3 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_3_o . "' AND Country_name = '" . $org_3_c . "'";
-                   } 
+                      $sql_org_3 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_3_o . "' AND Country_name = '" . $org_3_c . "'";
+                   }
                    else {
-            	      $sql_org_3 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_3_o . "'";
+                      $sql_org_3 = "SELECT Unified_org_id FROM Unified_org_names WHERE Name_en = '" . $org_3_o . "'";
                    }
 
                     $stmt = $dbh->query( $sql_org_3 );
                     foreach ($stmt as $row) {
-                        $org_id_3 = $row['Unified_org_id'];      
+                        $org_id_3 = $row['Unified_org_id'];
                     }
                 }
                 else {
@@ -524,10 +525,10 @@
             }
 
             $sql_country = "SELECT Country_code FROM Country WHERE Display_name = '" . $land_s . "'";
-	        $stmt = $dbh->query( $sql_country );
-	        foreach ($stmt as $row) {
-                $country_code = $row['Country_code'];      
-	        } 
+            $stmt = $dbh->query( $sql_country );
+            foreach ($stmt as $row) {
+                $country_code = $row['Country_code'];
+            }
 
             if (strlen($stad_s) == 0) {
                $sql_stad_s = "";
@@ -578,143 +579,143 @@
                 $sql_i = "INSERT INTO Rule_full_address_match (Find_country,Country_code,"
                 . $sql_stad_s
                 . "Find_str_1,"
-                . $sql_str_2 . $sql_str_3 . $sql_str_ej_1 . $sql_str_ej_2 . 
+                . $sql_str_2 . $sql_str_3 . $sql_str_ej_1 . $sql_str_ej_2 .
                 "Divide,
                 Country_1,City_1,Org_id_1,User_id,Rule_date,Run_status) VALUES
-                ('" . $land_s . "','" . $country_code . "','" 
-                . $sql_v_stad_s 
-                . $str_1 . "'," . $sql_v_str_2 . $sql_v_str_3 . $sql_v_str_ej_1 . $sql_v_str_ej_2 . $delas . 
+                ('" . $land_s . "','" . $country_code . "','"
+                . $sql_v_stad_s
+                . $str_1 . "'," . $sql_v_str_2 . $sql_v_str_3 . $sql_v_str_ej_1 . $sql_v_str_ej_2 . $delas .
                 ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $username . "',GETDATE(),1)";
             }
             else if ($delas == 2) {
                 $sql_i = "INSERT INTO Rule_full_address_match (Find_country,Country_code,"
-                . $sql_stad_s 
-                . "Find_str_1," 
-                . $sql_str_2 . $sql_str_3 . $sql_str_ej_1 . $sql_str_ej_2 . 
+                . $sql_stad_s
+                . "Find_str_1,"
+                . $sql_str_2 . $sql_str_3 . $sql_str_ej_1 . $sql_str_ej_2 .
                 "Divide,
                 Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,User_id,Rule_date,Run_status) VALUES
-                ('" . $land_s . "','" . $country_code . "','" 
+                ('" . $land_s . "','" . $country_code . "','"
                 . $sql_v_stad_s
-                . $str_1 . "'," . $sql_v_str_2 . $sql_v_str_3 . $sql_v_str_ej_1 . $sql_v_str_ej_2 
-                . $delas . 
-                ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 . 
-                "'," . $org_id_2 . ",'" . $username . "',GETDATE(),1)";        
+                . $str_1 . "'," . $sql_v_str_2 . $sql_v_str_3 . $sql_v_str_ej_1 . $sql_v_str_ej_2
+                . $delas .
+                ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 .
+                "'," . $org_id_2 . ",'" . $username . "',GETDATE(),1)";
             }
             else {
                 $sql_i = "INSERT INTO Rule_full_address_match (Find_country,Country_code,"
                 . $sql_stad_s
-                . "Find_str_1," 
-                . $sql_str_2 . $sql_str_3 . $sql_str_ej_1 . $sql_str_ej_2 . 
+                . "Find_str_1,"
+                . $sql_str_2 . $sql_str_3 . $sql_str_ej_1 . $sql_str_ej_2 .
                 "Divide,
                 Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,Country_3,City_3,Org_id_3,
                 User_id,Rule_date,Run_status) VALUES
-                ('" . $land_s . "','" . $country_code . "','" 
+                ('" . $land_s . "','" . $country_code . "','"
                 . $sql_v_stad_s
-                . $str_1 . "'," . $sql_v_str_2 . $sql_v_str_3 . $sql_v_str_ej_1 . $sql_v_str_ej_2 . $delas . 
-                ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 . 
-                "'," . $org_id_2 . ",'" . $land_3 . "','" . $stad_3 . "'," . $org_id_3 . ",'" . 
-                $username . "',GETDATE(),1)";        
+                . $str_1 . "'," . $sql_v_str_2 . $sql_v_str_3 . $sql_v_str_ej_1 . $sql_v_str_ej_2 . $delas .
+                ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 .
+                "'," . $org_id_2 . ",'" . $land_3 . "','" . $stad_3 . "'," . $org_id_3 . ",'" .
+                $username . "',GETDATE(),1)";
             }
-            
-	        $stmt = $dbh->query( $sql_i );
+
+            $stmt = $dbh->query( $sql_i );
 
             if ($count = $stmt->rowCount() > 0) {
                 echo '<script language="javascript">';
                 echo 'alert("Regeln är sparad!")';
-                echo '</script>'; 
-                $_SESSION['n_regel_f_a'] = $str_1;           
+                echo '</script>';
+                $_SESSION['n_regel_f_a'] = $str_1;
             }
             else {
                 echo '<script language="javascript">';
                 echo 'alert("Fel vid sparande av regeln!")';
-                echo '</script>';            
+                echo '</script>';
             }
 
         }
 
     }
 
-	// Hämta länder ur tabellen Country
+    // Hämta länder ur tabellen Country
 
-	$sql_c = "SELECT Display_name FROM country";
+    $sql_c = "SELECT Display_name FROM country";
 
-	// Execute it, or let it throw an error message if there's a problem.
+    // Execute it, or let it throw an error message if there's a problem.
 
-	$stmt = $dbh->query( $sql_c );
+    $stmt = $dbh->query( $sql_c );
 
     $dropdown = "<select name='country' hidden id='id_country'>";
 
-	foreach ($stmt as $row) {
+    foreach ($stmt as $row) {
 
     $dropdown .= "\r\n<option value='{$row['Display_name']}'>{$row['Display_name']}</option>";
 
-	}
+    }
 
-	$dropdown .= "\r\n</select>";
+    $dropdown .= "\r\n</select>";
 
-	echo $dropdown;
+    echo $dropdown;
 
-	// Hämta enhetliga organisationsnamn ur tabellen Unified_org_names
+    // Hämta enhetliga organisationsnamn ur tabellen Unified_org_names
 
-	$sql_o = "SELECT Name_en + ' [' + Country_name + ']' AS Name FROM Unified_org_names";
+    $sql_o = "SELECT Name_en + ' [' + Country_name + ']' AS Name FROM Unified_org_names";
 
-	// Execute it, or let it throw an error message if there's a problem.
+    // Execute it, or let it throw an error message if there's a problem.
 
-	$stmt = $dbh->query( $sql_o );
+    $stmt = $dbh->query( $sql_o );
 
     $dropdown = "<select name='unified_org_names' hidden id='id_unified_org_names'>";
 
-	foreach ($stmt as $row) {
+    foreach ($stmt as $row) {
 
     $dropdown .= "\r\n<option value='{$row['Name']}'>{$row['Name']}</option>";
 
-	}
+    }
 
-	$dropdown .= "\r\n</select>";
+    $dropdown .= "\r\n</select>";
 
-	echo $dropdown;
+    echo $dropdown;
 
 ?>
 
-<h2>NY REGEL FULL ADRESS</h2>	
-	                                    
-		    <form action="ny_regel_f_a.php" method="post">
+<h2>NY REGEL FULL ADRESS</h2>
+
+            <form action="ny_regel_f_a.php" method="post">
 
                 <input type="submit" name="spara" value="Spara regel"/>&nbsp;&nbsp;
                 <a href='regel_full_adress.php'>TILL SÖKNING</a>&nbsp;&nbsp;
                 <a href='adressmeny.php'>TILL MENYN</a>
                 <br /><br /><br />
 
-                <h3>SÖKFÄLT</h3>    
-                
+                <h3>SÖKFÄLT</h3>
+
                 Land #:</br>
                 <select id="id_s_land" name="Land">
                     <option>Ange land</option>
                 </select>
                 &nbsp;<input type="text" name="Soek_land_s" id="id_soek_land_s" onchange="f_populera_soek_Land_S()" />
                 <br />
-			    Stad:</br> 
-				<input type="text" name="Stad" id="id_s_stad" />
+                Stad:</br>
+                <input type="text" name="Stad" id="id_s_stad" />
                 <br />
-			    Söksträng 1 #:</br>  
-				<input type="text" name="Str_1" id="id_s_1" />
+                Söksträng 1 #:</br>
+                <input type="text" name="Str_1" id="id_s_1" />
                 <br />
-			    Söksträng 2:</br>  
-				<input type="text" name="Str_2" id="id_s_2" />
+                Söksträng 2:</br>
+                <input type="text" name="Str_2" id="id_s_2" />
                 <br />
-			    Söksträng 3:</br> 
-				<input type="text" name="Str_3" id="id_s_3" />
+                Söksträng 3:</br>
+                <input type="text" name="Str_3" id="id_s_3" />
                 <br />
-			    Söksträng ej 1:</br>   
-				<input type="text" name="Str_ej_1" id="id_s_ej_1" />
+                Söksträng ej 1:</br>
+                <input type="text" name="Str_ej_1" id="id_s_ej_1" />
                 <br />
-			    Söksträng ej 2:</br>   
-				<input type="text" name="Str_ej_2" id="id_s_ej_2" />
+                Söksträng ej 2:</br>
+                <input type="text" name="Str_ej_2" id="id_s_ej_2" />
                 <br />
-				
-				<h3>ÄNDRINGSFÄLT</h3>
 
-			    Delas i #:</br>
+                <h3>ÄNDRINGSFÄLT</h3>
+
+                Delas i #:</br>
                 <select id="id_delas" name="Delas">
                   <option value=""></option>
                   <option value="1">1</option>
@@ -722,59 +723,59 @@
                   <option value="3">3</option>
                 </select>
                 <br /><br />
-				
-				<b>Organisation 1 #:</b><br />
-				Annat organisationsnamn:<br />
+
+                <b>Organisation 1 #:</b><br />
+                Annat organisationsnamn:<br />
                 <select id="id_h_org_1" name="Org_1">
                     <option>Ange organisation</option>
                 </select>
-                &nbsp;<input type="text" name="Soek_org_h_1" id="id_soek_org_h_1" onchange="f_populera_soek_Org_H_1()" />				                				
+                &nbsp;<input type="text" name="Soek_org_h_1" id="id_soek_org_h_1" onchange="f_populera_soek_Org_H_1()" />
                 <br />
-			    Annat land:<br />
+                Annat land:<br />
                 <select id="id_h_land_1" name="Land_1">
                     <option>Ange land</option>
                 </select>
-                &nbsp;<input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" onchange="f_populera_soek_Land_H_1()" />				
-                <br />                								
-				Annan stad:<br /> 
-				<input type="text" name="Stad_1" id="h_id_stad_1" /><br />
-				<br />
-						
-				<b>Organisation 2:</b><br />
-				Annat organisationsnamn:<br />
+                &nbsp;<input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" onchange="f_populera_soek_Land_H_1()" />
+                <br />
+                Annan stad:<br />
+                <input type="text" name="Stad_1" id="h_id_stad_1" /><br />
+                <br />
+
+                <b>Organisation 2:</b><br />
+                Annat organisationsnamn:<br />
                 <select id="id_h_org_2" name="Org_2">
                     <option>Ange organisation</option>
                 </select>
-                &nbsp;<input type="text" name="Soek_org_h_2" id="id_soek_org_h_2" onchange="f_populera_soek_Org_H_2()" />				                				                					
+                &nbsp;<input type="text" name="Soek_org_h_2" id="id_soek_org_h_2" onchange="f_populera_soek_Org_H_2()" />
                 <br />
-			    Annat land:<br />
+                Annat land:<br />
                 <select id="id_h_land_2" name="Land_2">
                     <option>Ange land</option>
                 </select>
-                &nbsp;<input type="text" name="Soek_land_h_2" id="id_soek_land_h_2" onchange="f_populera_soek_Land_H_2()" />				               					
-				<br />
-				Annan stad:<br /> 
-				<input type="text" name="Stad_2" id="h_id_stad_2" /><br />
-				<br />
-				
-				<b>Organisation 3:</b><br />
-				Annat organisationsnamn:<br />
+                &nbsp;<input type="text" name="Soek_land_h_2" id="id_soek_land_h_2" onchange="f_populera_soek_Land_H_2()" />
+                <br />
+                Annan stad:<br />
+                <input type="text" name="Stad_2" id="h_id_stad_2" /><br />
+                <br />
+
+                <b>Organisation 3:</b><br />
+                Annat organisationsnamn:<br />
                 <select id="id_h_org_3" name="Org_3">
                     <option>Ange organisation</option>
                 </select>
-                &nbsp;<input type="text" name="Soek_org_h_3" id="id_soek_org_h_3" onchange="f_populera_soek_Org_H_3()" />				                				                					
+                &nbsp;<input type="text" name="Soek_org_h_3" id="id_soek_org_h_3" onchange="f_populera_soek_Org_H_3()" />
                 <br />
-			    Annat land:<br />
+                Annat land:<br />
                 <select id="id_h_land_3" name="Land_3">
                     <option>Ange land</option>
                 </select>
-                &nbsp;<input type="text" name="Soek_land_h_3" id="id_soek_land_h_3" onchange="f_populera_soek_Land_H_3()" />				
-				<br />
-				Annan stad:<br /> 
-				<input type="text" name="Stad_3" id="h_id_stad_3" /><br />
-				<br />				
-				
-		    </form>
-								
-	</body>
+                &nbsp;<input type="text" name="Soek_land_h_3" id="id_soek_land_h_3" onchange="f_populera_soek_Land_H_3()" />
+                <br />
+                Annan stad:<br />
+                <input type="text" name="Stad_3" id="h_id_stad_3" /><br />
+                <br />
+
+            </form>
+
+    </body>
 </html>

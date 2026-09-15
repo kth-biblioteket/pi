@@ -1,452 +1,238 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
-<!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+$dbh = bibmet_sqlsrv_connect_or_redirect();
+
+$u_org_id = bibmet_request_value('Unified_org_id', isset($_SESSION['u_org_id']) ? (string) $_SESSION['u_org_id'] : "");
+$reason = isset($_POST['orsak']) ? trim((string) $_POST['orsak']) : "";
+$errors = [];
+$successMessages = [];
+$warningMessages = [];
+$organisation = null;
+$orgTypeName = "";
+$hasRules = false;
+$deleted = false;
+
+function bibmet_org_has_rules(PDO $dbh, $orgId)
+{
+    foreach ([
+        "rule_org_match",
+        "rule_full_address_match",
+        "rule_center_match",
+    ] as $table) {
+        $checkStmt = $dbh->prepare("SELECT COUNT(*) FROM $table WHERE Org_id_1 = :org_id_1 OR Org_id_2 = :org_id_2 OR Org_id_3 = :org_id_3");
+        $checkStmt->bindValue(':org_id_1', (int) $orgId, PDO::PARAM_INT);
+        $checkStmt->bindValue(':org_id_2', (int) $orgId, PDO::PARAM_INT);
+        $checkStmt->bindValue(':org_id_3', (int) $orgId, PDO::PARAM_INT);
+        $checkStmt->execute();
+        if ((int) $checkStmt->fetchColumn() > 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function render_readonly_org_field($label, $value)
+{
+    ?>
+    <label class="bibmet-field">
+        <span class="bibmet-field__label"><?php echo bibmet_h($label); ?></span>
+        <input class="bibmet-input" type="text" value="<?php echo bibmet_h($value); ?>" disabled>
+    </label>
+    <?php
+}
+
+if (!ctype_digit($u_org_id) || (int) $u_org_id <= 0) {
+    $errors[] = "Ogiltigt organisations-id.";
+} else {
+    $_SESSION['u_org_id'] = $u_org_id;
+
+    try {
+        $stmt = $dbh->prepare("SELECT Unified_org_id, Name_local, Name_en, Country_name, Org_type_code, Comment, User_id, Latest_date, ROR_id
+            FROM unified_org_names
+            WHERE Unified_org_id = :org_id");
+        $stmt->bindValue(':org_id', (int) $u_org_id, PDO::PARAM_INT);
+        $stmt->execute();
+        $organisation = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$organisation) {
+            $errors[] = "Organisationen hittades inte eller är redan borttagen.";
+        } else {
+            $_SESSION['unified_org_id'] = $organisation['Unified_org_id'];
+            $_SESSION['namn_lok'] = $organisation['Name_local'];
+            $_SESSION['namn_eng'] = $organisation['Name_en'];
+            $_SESSION['land'] = $organisation['Country_name'];
+            $_SESSION['orgtyp'] = $organisation['Org_type_code'];
+            $_SESSION['komm'] = $organisation['Comment'];
+            $_SESSION['user_id'] = $organisation['User_id'];
+            $_SESSION['latest_date'] = $organisation['Latest_date'];
+            $_SESSION['rorid'] = $organisation['ROR_id'];
+
+            $typeStmt = $dbh->prepare("SELECT Org_type_eng FROM Organization_type WHERE Org_type_code = :org_type_code");
+            $typeStmt->bindValue(':org_type_code', (string) $organisation['Org_type_code'], PDO::PARAM_STR);
+            $typeStmt->execute();
+            $orgTypeName = (string) $typeStmt->fetchColumn();
+
+            $hasRules = bibmet_org_has_rules($dbh, $u_org_id);
+        }
+    } catch (PDOException $e) {
+        $errors[] = "Det gick inte att hämta organisationen.";
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $organisation && !$errors) {
+    if ($reason === "") {
+        $errors[] = "Orsak måste anges.";
+    } elseif ($hasRules) {
+        $warningMessages[] = "Organisationen kan inte tas bort eftersom den finns i regler.";
+    } elseif (isset($_SESSION['b_org_id']) && (string) $_SESSION['b_org_id'] === $u_org_id) {
+        $successMessages[] = "Organisationen är redan borttagen i den här sessionen.";
+        $deleted = true;
+        $organisation = null;
+    } else {
+        try {
+            $dbh->beginTransaction();
+            $archiveWarning = "";
+
+            try {
+                $archiveSql = "INSERT INTO removed_un_org_names
+                    (Unified_org_id, Name_local, Name_en, Country_name, Org_type_code, Comment, User_id, Latest_date, Remove_user_id, Remove_date, Reason, ROR_id)
+                    VALUES
+                    (:Unified_org_id, :Name_local, :Name_en, :Country_name, :Org_type_code, :Comment, :User_id, :Latest_date, :Remove_user_id, CURRENT_TIMESTAMP, :Reason, :ROR_id)";
+                $archiveStmt = $dbh->prepare($archiveSql);
+                foreach (['Unified_org_id', 'Name_local', 'Name_en', 'Country_name', 'Org_type_code', 'Comment', 'User_id', 'Latest_date', 'ROR_id'] as $column) {
+                    $archiveStmt->bindValue(':' . $column, $organisation[$column] ?? null);
+                }
+                $archiveStmt->bindValue(':Remove_user_id', isset($_SESSION['anv']) ? $_SESSION['anv'] : '');
+                $archiveStmt->bindValue(':Reason', $reason);
+                $archiveStmt->execute();
+            } catch (PDOException $e) {
+                $archiveWarning = "Organisationen kunde inte arkiveras eftersom arkivtabellen saknas eller inte är tillgänglig.";
+            }
+
+            $deleteStmt = $dbh->prepare("DELETE FROM unified_org_names WHERE Unified_org_id = :org_id");
+            $deleteStmt->bindValue(':org_id', (int) $u_org_id, PDO::PARAM_INT);
+            $deleteStmt->execute();
+
+            if ($deleteStmt->rowCount() > 0) {
+                $_SESSION['b_org_id'] = $u_org_id;
+                $deleted = true;
+                $organisation = null;
+                $successMessages[] = "Organisationen är borttagen.";
+                if ($archiveWarning !== "") {
+                    $warningMessages[] = $archiveWarning;
+                }
+                $dbh->commit();
+            } else {
+                $errors[] = "Fel vid borttagande av organisationen.";
+                $dbh->rollBack();
+            }
+        } catch (PDOException $e) {
+            if ($dbh->inTransaction()) {
+                $dbh->rollBack();
+            }
+            $errors[] = "Fel vid borttagande av organisationen.";
+        }
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="sv">
 
 <! Författare: Cecilia Wiklander>
 <! Syfte: Adressrättnings-hantering>
 <! Ändringar: >
 
 <head>
-
     <meta charset="utf-8">
-
-    <title>TA BORT ORGANISATIONSNAMN</title>
-	
-    <link href="Site.css" rel="stylesheet"> 
-
-<script type="text/javascript">
-
-    function f_populera_Land() {
-        // Populera
-        f_populera_Orgtyp();
-        landlista = [];
-        land_test = "";
-        var x_antal = document.getElementById("id_country").length;
-        var e = document.getElementById("id_country");
-        for (i = 0; i < x_antal; i++) {
-            land_test = e.options[i].text;
-            landlista.push(land_test);
-        }
-        // Sökfälten Land
-        document.getElementById("id_soek_land_s").value = "*";
-        var soeklista = document.getElementById("id_s_land");
-        var laengd = soeklista.length;
-        for (i = 1; i < laengd; i++) {
-            soeklista.remove(1);
-        }
-        var soeklista = document.getElementById("id_s_land");
-        for (var i = 0; i < landlista.length; i++) {
-            var opt = landlista[i];
-            var el = document.createElement("option");
-            el.textContent = opt;
-            el.value = opt;
-            soeklista.appendChild(el);
-        }
-        // Ändrafältet Land 1
-        document.getElementById("id_soek_land_h_1").value = "*";
-        var soeklista = document.getElementById("id_h_land_1");
-        var laengd = soeklista.length;
-        for (i = 1; i < laengd; i++) {
-            soeklista.remove(1);
-        }
-        for (var i = 0; i < landlista.length; i++) {
-            var opt = landlista[i];
-            var el = document.createElement("option");
-            el.textContent = opt;
-            el.value = opt;
-            soeklista.appendChild(el);
-        }
-        // Ändrafältet Land 2
-        document.getElementById("id_soek_land_h_2").value = "*";
-        var soeklista = document.getElementById("id_h_land_2");
-        var laengd = soeklista.length;
-        for (i = 1; i < laengd; i++) {
-            soeklista.remove(1);
-        }
-        for (var i = 0; i < landlista.length; i++) {
-            var opt = landlista[i];
-            var el = document.createElement("option");
-            el.textContent = opt;
-            el.value = opt;
-            soeklista.appendChild(el);
-        }
-        // Ändrafältet Land 3
-        document.getElementById("id_soek_land_h_3").value = "*";
-        var soeklista = document.getElementById("id_h_land_3");
-        var laengd = soeklista.length;
-        for (i = 1; i < laengd; i++) {
-            soeklista.remove(1);
-        }
-        for (var i = 0; i < landlista.length; i++) {
-            var opt = landlista[i];
-            var el = document.createElement("option");
-            el.textContent = opt;
-            el.value = opt;
-            soeklista.appendChild(el);
-        }
-    }
-
-    function f_populera_soek_Land_S() {
-        var v_text = document.getElementById("id_soek_land_s").value;
-        if (v_text > "") {
-            var soeklista = document.getElementById("id_s_land");
-            var laengd = soeklista.length;
-            for (i = 1; i < laengd; i++) {
-                soeklista.remove(1);
-            }
-            // Skapa landlista utan urval
-            if (v_text == "*") {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    var el = document.createElement("option");
-                    el.textContent = opt;
-                    el.value = opt;
-                    soeklista.appendChild(el);
-                }
-            }
-            // Skapa landlista med urval
-            else {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    if (opt.toUpperCase().indexOf(v_text.toUpperCase()) > -1) {
-                        var el = document.createElement("option");
-                        el.textContent = opt;
-                        el.value = opt;
-                        soeklista.appendChild(el);
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    function f_populera_soek_Land_H_1() {
-        var v_text = document.getElementById("id_soek_land_h_1").value;
-        if (v_text > "") {
-            var soeklista = document.getElementById("id_h_land_1");
-            var laengd = soeklista.length;
-            for (i = 1; i < laengd; i++) {
-                soeklista.remove(1);
-            }
-            // Skapa landlista utan urval
-            if (v_text == "*") {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    var el = document.createElement("option");
-                    el.textContent = opt;
-                    el.value = opt;
-                    soeklista.appendChild(el);
-                }
-            }
-            // Skapa landlista med urval
-            else {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    if (opt.toUpperCase().indexOf(v_text.toUpperCase()) > -1) {
-                        var el = document.createElement("option");
-                        el.textContent = opt;
-                        el.value = opt;
-                        soeklista.appendChild(el);
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    function f_populera_soek_Land_H_2() {
-        var v_text = document.getElementById("id_soek_land_h_2").value;
-        if (v_text > "") {
-            var soeklista = document.getElementById("id_h_land_2");
-            var laengd = soeklista.length;
-            for (i = 1; i < laengd; i++) {
-                soeklista.remove(1);
-            }
-            // Skapa landlista utan urval
-            if (v_text == "*") {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    var el = document.createElement("option");
-                    el.textContent = opt;
-                    el.value = opt;
-                    soeklista.appendChild(el);
-                }
-            }
-            // Skapa landlista med urval
-            else {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    if (opt.toUpperCase().indexOf(v_text.toUpperCase()) > -1) {
-                        var el = document.createElement("option");
-                        el.textContent = opt;
-                        el.value = opt;
-                        soeklista.appendChild(el);
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    function f_populera_soek_Land_H_3() {
-        var v_text = document.getElementById("id_soek_land_h_3").value;
-        if (v_text > "") {
-            var soeklista = document.getElementById("id_h_land_3");
-            var laengd = soeklista.length;
-            for (i = 1; i < laengd; i++) {
-                soeklista.remove(1);
-            }
-            // Skapa landlista utan urval
-            if (v_text == "*") {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i].namn_eng;
-                    var el = document.createElement("option");
-                    el.textContent = opt;
-                    el.value = opt;
-                    soeklista.appendChild(el);
-                }
-            }
-            // Skapa landlista med urval
-            else {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i].namn_eng;
-                    if (opt.toUpperCase().indexOf(v_text.toUpperCase()) > -1) {
-                        var el = document.createElement("option");
-                        el.textContent = opt;
-                        el.value = opt;
-                        soeklista.appendChild(el);
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    function f_populera_Orgtyp() {
-        // Populera
-        orgtyplista = [];
-        orgtyppost = "";
-        var x_antal = document.getElementById("id_orgtyp_dold").length;
-        var e = document.getElementById("id_orgtyp_dold");
-        for (i = 0; i < x_antal; i++) {
-            orgtyppost = e.options[i].text;
-            orgtyplista.push(orgtyppost);
-        }
-        var soeklista = document.getElementById("id_orgtyp");
-        for (var i = 0; i < orgtyplista.length; i++) {
-            var opt = orgtyplista[i];
-            var el = document.createElement("option");
-            el.textContent = opt;
-            el.value = opt;
-            soeklista.appendChild(el);
-        }
-    }
-
-    function validateForm() {
-        var x = document.forms["taBort"]["Antal"].value;
-        if (x == 1) {
-            alert("Organisationen kan inte tas bort, finns i regler!");
-            return false;
-        }
-        var y = document.forms["taBort"]["Orsak"].value;
-        if (y == "") {
-            alert("Orsak måste anges!");
-            return false;
-        }
-    }
-
-    function f_Ladda_sida() {
-        f_populera_Land();
-    }
-
-</script>
-	
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ta bort organisationsnamn</title>
+    <link href="Site.css" rel="stylesheet">
+    <?php include("include_bibmet_kth.html"); ?>
 </head>
 
-<body onload="f_Ladda_sida()">
+<body class="bibmet-body">
+    <?php include('include_head_new.html'); ?>
 
-<?php include('include_head_new.html'); ?>
+    <main class="bibmet-main">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Organisationsnamn</p>
+                    <h1 class="bibmet-title">Ta bort organisationsnamn</h1>
+                    <p class="bibmet-muted">
+                        <?php if ($deleted) : ?>
+                            Borttagningen är genomförd.
+                        <?php else : ?>
+                            Granska organisationen och ange orsak innan borttagning.
+                        <?php endif; ?>
+                    </p>
+                </div>
+                <div class="bibmet-action-group">
+                    <a href="organisationsnamn.php" class="bibmet-button bibmet-button--secondary">Till sökning</a>
+                    <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
+                </div>
+            </div>
+        </section>
 
-<?php
-       
-    $u_org_id = $_GET["Unified_org_id"];
+        <?php if ($errors) : ?>
+            <div class="bibmet-alert" role="alert">
+                <?php foreach ($errors as $error) : ?>
+                    <p><?php echo bibmet_h($error); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
-    if (intval($u_org_id) > 0) {
- 
-        $_SESSION['u_org_id'] = $u_org_id;
-
-        $username = $_SESSION['anv'];
-        $password = $_SESSION['ord'];
-        $hostname = $_SESSION['hnamn'];
-        $dbname = $_SESSION['dbnamn'];
-
-        $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
-
-        $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-        // Visa organisationen att ta ändra
-
-        $sql = "SELECT Unified_org_id,Name_local,Name_en,Country_name,Org_type_code,Comment,User_id,Latest_date,ROR_id FROM unified_org_names WHERE Unified_org_id = " . $u_org_id; 
-
-        $stmt = $dbh->query( $sql );
-
-    	foreach ($stmt as $row) {
-            $unified_org_id = $row['Unified_org_id'];
-            $namn_lok = $row['Name_local'];
-            $namn_eng = $row['Name_en'];
-            $land = $row['Country_name'];
-            $orgtyp = $row['Org_type_code'];
-            $komm = $row['Comment']; 
-            $user_id = $row['User_id'];
-            $latest_date = $row['Latest_date'];
-            $rorid = $row['ROR_id'];                                                  
-    	}
-
-        $_SESSION['unified_org_id'] = $unified_org_id;
-        $_SESSION['namn_lok'] = $namn_lok;
-        $_SESSION['namn_eng'] = $namn_eng;
-        $_SESSION['land'] = $land;
-        $_SESSION['orgtyp'] = $orgtyp;
-        $_SESSION['komm'] = $komm;
-        $_SESSION['user_id'] = $user_id;
-        $_SESSION['latest_date'] = $latest_date;
-        $_SESSION['rorid'] = $rorid;
-
-    	// Hämta länder ur tabellen Country
-
-    	$sql_c = "SELECT Display_name FROM country";
-
-    	// Execute it, or let it throw an error message if there's a problem.
-
-    	$stmt = $dbh->query( $sql_c );
-
-        $dropdown = "<select name='country' hidden id='id_country'>";
-
-    	foreach ($stmt as $row) {
-
-        $dropdown .= "\r\n<option value='{$row['Display_name']}'>{$row['Display_name']}</option>";
-
-    	}
-
-    	$dropdown .= "\r\n</select>";
-
-    	echo $dropdown;
-
-    	// Hämta organisationstyper ur tabellen Organization_type
-
-    	$sql_o = "SELECT Org_type_eng FROM Organization_type";
-
-    	// Execute it, or let it throw an error message if there's a problem.
-
-    	$stmt = $dbh->query( $sql_o );
-
-        $dropdown = "<select name='organization_type' hidden id='id_orgtyp_dold'>";
-
-    	foreach ($stmt as $row) {
-
-        $dropdown .= "\r\n<option value='{$row['Org_type_eng']}'>{$row['Org_type_eng']}</option>";
-
-    	}
-
-    	$dropdown .= "\r\n</select>";
-
-    	echo $dropdown;
-
-        $sql_orgtyp = "SELECT Org_type_eng FROM Organization_type WHERE Org_type_code = '" . $orgtyp . "'";
-        $stmt = $dbh->query( $sql_orgtyp );
-        foreach ($stmt as $row) {
-            $org_typ_eng = $row['Org_type_eng'];      
-        } 
-
-        // Kontrollera om organisationsnamnet finns i rättningsregler
-        $finns_regel = 0;
-        $sql_kolla_o = "SELECT COUNT(*) AS Antal FROM rule_org_match WHERE Org_id_1 = ". $u_org_id ." OR Org_id_2 = ". 
-        $u_org_id ." OR Org_id_3 = ". $u_org_id;
-        $stmt = $dbh->query( $sql_kolla_o );
-        foreach ($stmt as $row) {
-            $antal = $row['Antal'];      
-        } 
-        if ($antal > 0) {
-            $finns_regel = 1;
-        }
-        if (!$finns_regel) {
-            $sql_kolla_f_a = "SELECT COUNT(*) AS Antal FROM rule_full_address_match WHERE Org_id_1 = ". $u_org_id ." OR Org_id_2 = ". 
-            $u_org_id ." OR Org_id_3 = ". $u_org_id;
-            $stmt = $dbh->query( $sql_kolla_f_a );
-            foreach ($stmt as $row) {
-                $antal = $row['Antal'];      
-            } 
-            if ($antal > 0) {
-                $finns_regel = 1;
+        <?php
+        if ($hasRules && $organisation) {
+            $ruleWarning = "Organisationen kan inte tas bort eftersom den finns i regler.";
+            if (!in_array($ruleWarning, $warningMessages, true)) {
+                $warningMessages[] = $ruleWarning;
             }
         }
-        if (!$finns_regel) {
-            $sql_kolla_c = "SELECT COUNT(*) AS Antal FROM rule_center_match WHERE Org_id_1 = ". $u_org_id ." OR Org_id_2 = ". 
-            $u_org_id ." OR Org_id_3 = ". $u_org_id;
-            $stmt = $dbh->query( $sql_kolla_c );
-            foreach ($stmt as $row) {
-                $antal = $row['Antal'];      
-            }
-            if ($antal > 0) {
-                $finns_regel = 1;
-            }
-        }
+        ?>
 
-    }
+        <?php bibmet_render_messages_panel($deleted ? "Borttagning klar" : "Resultat", $successMessages, "success"); ?>
+        <?php bibmet_render_messages_panel("Varning", $warningMessages, "warning"); ?>
 
-?>
+        <?php if ($organisation) : ?>
+            <form action="ta_bort_organisation.php" method="post" class="bibmet-panel">
+                <input type="hidden" name="Unified_org_id" value="<?php echo bibmet_h($u_org_id); ?>">
 
-<h2>TA BORT ORGANISATIONSNAMN</h2>	
-	                                    
-		    <form action="ta_bort_organisation_resultat.php" onsubmit="return validateForm()" name="taBort" method="post">
+                <div class="bibmet-panel__header">
+                    <h2 class="bibmet-panel__title">Bekräfta borttagning</h2>
+                </div>
 
-                <input type="submit" name="spara" value="Radera organisation"/>&nbsp;&nbsp;
-                <a href='organisationsnamn.php'>TILL SÖKNING</a>&nbsp;&nbsp;
-                <a href='adressmeny.php'>TILL MENYN</a>
-                <br />
+                <div class="bibmet-form-grid bibmet-form-grid--narrow">
+                    <label class="bibmet-field">
+                        <span class="bibmet-field__label">Orsak *</span>
+                        <input class="bibmet-input" type="text" name="orsak" maxlength="100" value="<?php echo bibmet_h($reason); ?>" required<?php echo $hasRules ? ' disabled' : ''; ?>>
+                        <span class="bibmet-field__hint">Obligatoriskt. Beskriv varför organisationen ska tas bort.</span>
+                    </label>
+                </div>
 
-                <br />  
-                
-                <input type="text" name="Antal" value="<?php echo $finns_regel; ?>" hidden />&nbsp;&nbsp;  
-                <br />
-                 
-                ORSAK:</br> 
-				<input type="text" name="orsak" maxlength="100">&nbsp;&nbsp; 
-                <br />
+                <div class="bibmet-form-grid bibmet-form-grid--narrow">
+                    <?php render_readonly_org_field('Orgid', $organisation['Unified_org_id']); ?>
+                    <?php render_readonly_org_field('Lokalt namn', $organisation['Name_local']); ?>
+                    <?php render_readonly_org_field('Engelskt namn', $organisation['Name_en']); ?>
+                    <?php render_readonly_org_field('Land', $organisation['Country_name']); ?>
+                    <?php render_readonly_org_field('Organisationstyp', $orgTypeName !== '' ? $orgTypeName : $organisation['Org_type_code']); ?>
+                    <?php render_readonly_org_field('Kommentar', $organisation['Comment']); ?>
+                    <?php render_readonly_org_field('ROR-id', $organisation['ROR_id']); ?>
+                </div>
 
-                <br /><br />
-
-			    Orgid:</br> 
-				<input type="text" name="Orgid" value="<?php echo $u_org_id; ?>" disabled />&nbsp;&nbsp; 
-                <br />
-
-			    Lokalt namn:</br> 
-				<input type="text" name="Namn_lok_ut" value="<?php echo $namn_lok; ?>" disabled />&nbsp;&nbsp; 
-                <br />
-
-			    Engelskt namn:</br> 
-				<input type="text" name="Namn_eng_ut" value="<?php echo $namn_eng; ?>" disabled />&nbsp;&nbsp; 
-                <br />
-
-                Land:</br>
-                <input type="text" name="Land_ut" value="<?php echo $land; ?>" disabled />&nbsp;&nbsp;
-                <br />
-
-                Organisationstyp:</br>
-                <input type="text" name="Orgtyp_ut" value="<?php echo $org_typ_eng; ?>" disabled />&nbsp;&nbsp;
-                <br />
-
-			    Kommentar:</br> 
-				<input type="text" name="Komm_ut" value="<?php echo $komm; ?>" disabled />&nbsp;&nbsp; 
-                <br />
-
-			    ROR-id:</br> 
-				<input type="text" name="RORid" value="<?php echo $rorid; ?>" disabled />&nbsp;&nbsp; 
-                <br />
-				
-		    </form>
-								
-	</body>
+                <div class="bibmet-form-actions">
+                    <div class="bibmet-action-group">
+                        <input type="submit" name="spara" value="Radera organisation" class="bibmet-button bibmet-button--danger"<?php echo $hasRules ? ' disabled' : ''; ?>>
+                        <a href="organisationsnamn.php" class="bibmet-button bibmet-button--secondary">Avbryt</a>
+                    </div>
+                </div>
+            </form>
+        <?php endif; ?>
+    </main>
+</body>
 
 </html>

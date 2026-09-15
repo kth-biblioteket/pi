@@ -1,23 +1,83 @@
-# KTH Bibliotekets Tjänster för Publiceringens Infrastruktur(PI)
+# KTH Library PI services
 
-## Funktioner
-Startas i en Dockercontainer
+This repository contains KTH Library services for Publication Infrastructure (PI).
+The application is built as a Docker image and deployed through GitHub Actions.
 
-###
-Deploy via github actions som anropar en webhook
+## Services
 
-### Hanterar ISBN, Leta KTH-anställda, Adressrättning DiVA, BIBMET
+The PI application includes several legacy PHP services, including:
 
-#### Dependencies
-php:7.3-apache
-mysqli pdo pdo_mysql
+- ISBN tools
+- KTH employee lookup
+- DiVA address correction
+- BIBMET / Web of Science address correction
 
+## BIBMET production site
 
-##### Installation
+Production BIBMET address correction is available at:
 
-1.  Skapa folder på server med namnet på repot: "/local/docker/pi"
-2.  Skapa och anpassa docker-compose.yml i foldern
+<https://apps.lib.kth.se/PI/sqlserwebb/loggain.php>
+
+Reference/test "sandbox" deployment is available at:
+
+<https://apps-ref.lib.kth.se/PI/sqlserwebb/loggain.php>
+
+## Runtime
+
+The current Docker image is based on:
+
+- PHP 8.3 Apache
+- MySQL extensions for the older PI/DiVA/ISBN parts
+- Microsoft ODBC Driver 18
+- `sqlsrv` and `pdo_sqlsrv` PHP extensions for BIBMET
+
+BIBMET uses Microsoft SQL Server. The SQL Server host is configured through
+environment variables, not by editing PHP files at build time.
+
+```env
+MSSQL_HOST=bibmet01.ug.kth.se
+MSSQL_TRUST_SERVER_CERTIFICATE=true
+```
+
+For local MSSQL development, `MSSQL_HOST` can point to the local SQL Server
+container, for example:
+
+```env
+MSSQL_HOST=mssql
+MSSQL_TRUST_SERVER_CERTIFICATE=true
+```
+
+## Deployment overview
+
+The deployed container image is pulled from GitHub Container Registry:
+
 ```txt
+ghcr.io/kth-biblioteket/pi:${REPO_TYPE}
+```
+
+Typical deployment values:
+
+```env
+PATHPREFIX=/PI
+DOMAIN_NAME=apps.lib.kth.se
+REPO_TYPE=main
+MSSQL_HOST=bibmet01.ug.kth.se
+MSSQL_TRUST_SERVER_CERTIFICATE=true
+```
+
+For reference:
+
+```env
+PATHPREFIX=/PI
+DOMAIN_NAME=apps-ref.lib.kth.se
+REPO_TYPE=ref
+MSSQL_HOST=bibmet01.ug.kth.se
+MSSQL_TRUST_SERVER_CERTIFICATE=true
+```
+
+## Example Docker Compose deployment
+
+```yaml
 version: "3.6"
 
 services:
@@ -27,6 +87,9 @@ services:
       - pi-db
     image: ghcr.io/kth-biblioteket/pi:${REPO_TYPE}
     restart: unless-stopped
+    environment:
+      MSSQL_HOST: ${MSSQL_HOST:-bibmet01.ug.kth.se}
+      MSSQL_TRUST_SERVER_CERTIFICATE: ${MSSQL_TRUST_SERVER_CERTIFICATE:-true}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.pi.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`${PATHPREFIX}`)"
@@ -39,7 +102,7 @@ services:
       - /local/docker/pi/DiVA/DATAFILER:/var/www/html/PI/DiVA/DATAFILER
       - /local/docker/pi/DiVA/sqlserwebb/DATAFILER:/var/www/html/PI/DiVA/sqlserwebb/DATAFILER
     networks:
-      - "apps-net"
+      - apps-net
 
   pi-db:
     container_name: pi-db
@@ -59,7 +122,7 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
     networks:
-      - "apps-net"
+      - apps-net
 
 volumes:
   persistent-pi-db:
@@ -69,30 +132,65 @@ networks:
     external: true
 ```
 
-3.  Skapa och anpassa .env(för composefilen) i foldern
+## Server setup checklist
+
+1. Create the deployment directory, for example:
+
+   ```bash
+   /local/docker/pi
+   ```
+
+2. Add a `docker-compose.yml` based on the example above.
+3. Add an `.env` file for Compose variables.
+4. Create `/local/docker/pi/dbinit` and copy `dbinit/init.sql` there.
+5. Create the DiVA upload directories:
+
+   ```bash
+   /local/docker/pi/DiVA/DATAFILER
+   /local/docker/pi/DiVA/sqlserwebb/DATAFILER
+   ```
+
+6. Set ownership on upload directories:
+
+   ```bash
+   sudo chown -R www-data:www-data /local/docker/pi/DiVA/DATAFILER
+   sudo chown -R www-data:www-data /local/docker/pi/DiVA/sqlserwebb/DATAFILER
+   ```
+
+7. Start the stack:
+
+   ```bash
+   docker compose up -d
+   ```
+
+## Local BIBMET MSSQL development
+
+The recommended local setup for BIBMET development lives in the sibling
+`bibmet-tools` repository:
+
+```bash
+cd ../bibmet-tools
+make run
 ```
-DB_DATABASE=pi
-DB_USER=pi_anv
-DB_PASSWORD=xxxxxx
-DB_ROOT_PASSWORD=xxxxxx
-PATHPREFIX=/PI
-DOMAIN_NAME=apps-ref.lib.kth.se
-REPO_TYPE=ref
+
+That starts a local SQL Server container and a PHP container configured with
+`MSSQL_HOST=mssql`.
+
+### Temporary notes regarding deployment
+
+Deployment credentials are stored in the legacy repository, so changes must be pushed there after development is complete. Add the legacy repository as `upstream` if it is not already configured.
+
+```sh
+git remote add upstream git@github.com:kth-biblioteket/pi.git
+git switch ui-upgrade
+git pull origin ui-upgrade
+git push upstream ui-upgrade
 ```
 
+To push your current branch to the same branch on the upstream repository:
 
-4. Skapa folder "local/docker/pi/dbinit"
-5. Skapa init.sql från repots dbinit/init.sql
-6. Skapa folder /local/docker/pi/DiVA/sqlserwebb/DATAFILER
-7. Sätt rättigheter/ägare: sudo chown -R www-data:www-data /local/docker/pi/DiVA/sqlserwebb/DATAFILER
-8. Skapa folder /local/docker/pi/DiVA/DATAFILER
-9. Sätt rättigheter/ägare: sudo chown -R www-data:www-data /local/docker/pi/DiVA/DATAFILER
-10. Skapa deploy_ref.yml i github actions
-11. Skapa deploy_prod.yml i github actions
-12. Github Actions bygger en dockerimage i github packages
-13. Starta applikationen med docker compose up -d --build i "local/docker/pi"
+```sh
+git push -u upstream HEAD
+```
 
-
-
-
-
+After resolving the credentials, these notes should be deleted.

@@ -1,305 +1,218 @@
-<?php session_start(); ?>
+<?php
+require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
-<!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+$dbh = bibmet_sqlsrv_connect_or_redirect();
+
+$errors = [];
+$messages = [];
+$countries = [];
+$organizationTypes = [];
+
+$namn_l = "";
+$namn_e = "";
+$land = "";
+$orgtyp = "";
+$komm = "";
+$rorid = "";
+
+try {
+    $stmt = $dbh->query("SELECT Display_name FROM country ORDER BY Display_name");
+    $countries = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $stmt = $dbh->query("SELECT Org_type_eng FROM organization_type ORDER BY Org_type_eng");
+    $organizationTypes = $stmt->fetchAll(PDO::FETCH_COLUMN);
+} catch (PDOException $e) {
+    $errors[] = "Det gick inte att hämta listorna. " . $e->getMessage();
+}
+
+if (isset($_POST['spara'])) {
+    $namn_l = isset($_POST['Namn_lok']) ? trim((string) $_POST['Namn_lok']) : "";
+    $namn_e = isset($_POST['Namn_eng']) ? trim((string) $_POST['Namn_eng']) : "";
+    $land = isset($_POST['Land']) ? trim((string) $_POST['Land']) : "";
+    $orgtyp = isset($_POST['Orgtyp']) ? trim((string) $_POST['Orgtyp']) : "";
+    $komm = isset($_POST['Komm']) ? trim((string) $_POST['Komm']) : "";
+    $rorid = isset($_POST['RORid']) ? trim((string) $_POST['RORid']) : "";
+
+    if ($namn_l === "" && $namn_e === "") {
+        $errors[] = "Organisationsnamn måste anges.";
+    }
+
+    if ($namn_e === "") {
+        $errors[] = "Engelskt organisationsnamn måste anges.";
+    }
+
+    if ($orgtyp === "") {
+        $errors[] = "Organisationstyp måste anges.";
+    }
+
+    if ($rorid !== "") {
+        $rorid = preg_replace('/^https?:\/\/ror\.org\//i', '', $rorid);
+        $rorid = trim($rorid, "/ \t\n\r\0\x0B");
+        if (!preg_match('/^0[a-z0-9]{8}$/', $rorid)) {
+            $errors[] = "ROR-id måste vara tomt eller anges som ett giltigt ROR-id, till exempel 05f950310 eller https://ror.org/05f950310.";
+        }
+    }
+
+    if (!$errors) {
+        try {
+            $typeStmt = $dbh->prepare("SELECT Org_type_code FROM organization_type WHERE Org_type_eng = :orgtyp");
+            $typeStmt->bindValue(':orgtyp', $orgtyp, PDO::PARAM_STR);
+            $typeStmt->execute();
+            $org_type_code = $typeStmt->fetchColumn();
+
+            if ($org_type_code === false) {
+                $errors[] = "Ogiltig organisationstyp.";
+            } else {
+                $dbh->beginTransaction();
+
+                $idStmt = $dbh->query("SELECT COALESCE(MAX(Unified_org_id), 0) + 1 AS Unified_org_id FROM Unified_org_names");
+                $unif_org_id = (int) $idStmt->fetchColumn();
+
+                $insertSql = "INSERT INTO Unified_org_names
+                    (Unified_org_id, Name_local, Name_en, Country_name, Org_type_code, Comment, User_id, Latest_date, ROR_id)
+                    VALUES
+                    (:org_id, :name_local, :name_en, :country_name, :org_type_code, :comment, :user_id, CURRENT_TIMESTAMP, :ror_id)";
+                $insertStmt = $dbh->prepare($insertSql);
+                $insertStmt->bindValue(':org_id', $unif_org_id, PDO::PARAM_INT);
+                $insertStmt->bindValue(':name_local', $namn_l, PDO::PARAM_STR);
+                $insertStmt->bindValue(':name_en', $namn_e, PDO::PARAM_STR);
+                $insertStmt->bindValue(':country_name', $land === "" ? null : $land, $land === "" ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                $insertStmt->bindValue(':org_type_code', $org_type_code, PDO::PARAM_STR);
+                $insertStmt->bindValue(':comment', $komm, PDO::PARAM_STR);
+                $insertStmt->bindValue(':user_id', isset($_SESSION['anv']) ? $_SESSION['anv'] : '', PDO::PARAM_STR);
+                $insertStmt->bindValue(':ror_id', $rorid === "" ? null : $rorid, $rorid === "" ? PDO::PARAM_NULL : PDO::PARAM_STR);
+                $insertStmt->execute();
+
+                $dbh->commit();
+                $messages[] = "Organisationen är sparad med org-id " . $unif_org_id . ".";
+
+                $namn_l = "";
+                $namn_e = "";
+                $land = "";
+                $orgtyp = "";
+                $komm = "";
+                $rorid = "";
+            }
+        } catch (PDOException $e) {
+            if ($dbh->inTransaction()) {
+                $dbh->rollBack();
+            }
+            $errors[] = "Fel vid sparande av organisationen. " . $e->getMessage();
+        }
+    }
+}
+?>
+
+<!DOCTYPE html>
+<html lang="sv">
 
 <! Författare: Cecilia Wiklander>
 <! Syfte: Adressrättnings-hantering>
-<! Ändringar: >
+<! Ändringar:>
 
 <head>
-
     <meta charset="utf-8">
-
-    <title>NYTT ORGANISATIONSNAMN</title>
-	
-    <link href="Site.css" rel="stylesheet"> 
-		
-<script type="text/javascript">
-
-    function f_populera_Land() {
-        // Populera
-        f_populera_Orgtyp();
-        var e = document.getElementById("id_country");
-        landlista = [];
-        land_test = "";
-        var x_antal = document.getElementById("id_country").length;
-        var e = document.getElementById("id_country");
-        for (i = 0; i < x_antal; i++) {
-            land_test = e.options[i].text;
-            landlista.push(land_test);
-        }
-        // Sökfälten Land
-        document.getElementById("id_soek_land_s").value = "*";
-        var soeklista = document.getElementById("id_s_land");
-        var laengd = soeklista.length;
-        for (i = 1; i < laengd; i++) {
-            soeklista.remove(1);
-        }
-        var soeklista = document.getElementById("id_s_land");
-        for (var i = 0; i < landlista.length; i++) {
-            var opt = landlista[i];
-            var el = document.createElement("option");
-            el.textContent = opt;
-            el.value = opt;
-            soeklista.appendChild(el);
-        }
-    }
-
-    function f_populera_soek_Land_S() {
-        var v_text = document.getElementById("id_soek_land_s").value;
-        if (v_text > "") {
-            var soeklista = document.getElementById("id_s_land");
-            var laengd = soeklista.length;
-            for (i = 1; i < laengd; i++) {
-                soeklista.remove(1);
-            }
-            // Skapa landlista utan urval
-            if (v_text == "*") {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    var el = document.createElement("option");
-                    el.textContent = opt;
-                    el.value = opt;
-                    soeklista.appendChild(el);
-                }
-            }
-            // Skapa landlista med urval
-            else {
-                for (var i = 0; i < landlista.length; i++) {
-                    var opt = landlista[i];
-                    if (opt.toUpperCase().indexOf(v_text.toUpperCase()) > -1) {
-                        var el = document.createElement("option");
-                        el.textContent = opt;
-                        el.value = opt;
-                        soeklista.appendChild(el);
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    function f_populera_Orgtyp() {
-        // Populera
-        orglista = [];
-        org_test = "";
-        var x_antal = document.getElementById("id_organization_type").length;
-        var e = document.getElementById("id_organization_type");
-        for (i = 0; i < x_antal; i++) {
-            org_test = e.options[i].text;
-            orglista.push(org_test);
-        }
-        // Sökfälten Land
-        var soeklista = document.getElementById("id_s_orgtyp");
-        var laengd = soeklista.length;
-        for (i = 1; i < laengd; i++) {
-            soeklista.remove(1);
-        }
-        var soeklista = document.getElementById("id_s_orgtyp");
-        for (var i = 0; i < orglista.length; i++) {
-            var opt = orglista[i];
-            var el = document.createElement("option");
-            el.textContent = opt;
-            el.value = opt;
-            soeklista.appendChild(el);
-        }
-    }
-
-    function f_Ladda_sida() {
-        f_populera_Land();
-    }
-
-</script>	
-	
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ny organisation</title>
+    <link href="Site.css" rel="stylesheet">
+    <link href="vendor/tom-select/tom-select.css" rel="stylesheet">
+    <?php include("include_bibmet_kth.html"); ?>
+    <script src="vendor/tom-select/tom-select.complete.min.js"></script>
+    <script src="bibmet-selects.js"></script>
 </head>
 
-<body onload="f_Ladda_sida()">
+<body class="bibmet-body">
+    <?php include('include_head_new.html'); ?>
 
-<?php include('include_head_new.html'); ?>
+    <main class="bibmet-main">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Organisationsnamn</p>
+                    <h1 class="bibmet-title">Ny organisation</h1>
+                    <p class="bibmet-muted">Skapa ett nytt organisationsnamn. Fält markerade som obligatoriska måste fyllas i.</p>
+                </div>
+                <div class="bibmet-action-group">
+                    <a href="organisationsnamn.php" class="bibmet-button bibmet-button--secondary">Till sökning</a>
+                    <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
+                </div>
+            </div>
+        </section>
 
-<?php
+        <?php if ($errors) : ?>
+            <div class="bibmet-alert" role="alert">
+                <?php foreach ($errors as $error) : ?>
+                    <p><?php echo bibmet_h($error); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
-    $username = $_SESSION['anv'];
-    $password = $_SESSION['ord'];
-    $hostname = $_SESSION['hnamn'];
-    $dbname = $_SESSION['dbnamn'];
+        <?php if ($messages) : ?>
+            <div class="bibmet-alert bibmet-alert--success" role="status">
+                <?php foreach ($messages as $message) : ?>
+                    <p><?php echo bibmet_h($message); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
 
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
+        <form action="ny_organisation.php" method="post" class="bibmet-panel">
+            <div class="bibmet-panel__header">
+                <h2 class="bibmet-panel__title">Organisationsuppgifter</h2>
+            </div>
 
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            <div class="bibmet-form-grid bibmet-form-grid--narrow">
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Lokalt namn</span>
+                    <input class="bibmet-input" type="text" name="Namn_lok" value="<?php echo bibmet_h($namn_l); ?>">
+                    <span class="bibmet-field__hint">Ange lokalt namn om det finns.</span>
+                </label>
 
-    if (isset($_POST['spara'])) {
-        $namn_l = $_POST['Namn_lok'];
-        $namn_e = $_POST['Namn_eng'];
-        $land = $_POST['Land'];
-        $orgtyp = $_POST['Orgtyp'];
-        $komm = $_POST['Komm'];
-        $rorid = $_POST['RORid'];
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Engelskt namn *</span>
+                    <input class="bibmet-input" type="text" name="Namn_eng" value="<?php echo bibmet_h($namn_e); ?>" required>
+                </label>
 
-        $Sk = "'";
-        $Ers = "''";
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Land</span>
+                    <select class="bibmet-select js-bibmet-select" id="id_s_land" name="Land">
+                        <option value="">Ange land</option>
+                        <?php foreach ($countries as $country) : ?>
+                            <option value="<?php echo bibmet_h($country); ?>"<?php echo bibmet_selected_attr($country, $land); ?>><?php echo bibmet_h($country); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
 
-        $namn_l = str_replace($Sk, $Ers, $namn_l);
-        $namn_e = str_replace($Sk, $Ers, $namn_e);
-        $komm = str_replace($Sk, $Ers, $komm);
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Organisationstyp *</span>
+                    <select class="bibmet-select js-bibmet-select" id="id_s_orgtyp" name="Orgtyp" required>
+                        <option value="">Ange organisationstyp</option>
+                        <?php foreach ($organizationTypes as $organizationType) : ?>
+                            <option value="<?php echo bibmet_h($organizationType); ?>"<?php echo bibmet_selected_attr($organizationType, $orgtyp); ?>><?php echo bibmet_h($organizationType); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </label>
 
-        if (strlen($namn_l) == 0 && strlen($namn_e) == 0){
-            echo "<script>alert('Organisationsnamn måste anges!');</script>";
-            $koll_svar = false;
-        }
-        else {
-            $koll_svar = true;
-        }
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">Kommentar</span>
+                    <input class="bibmet-input" type="text" name="Komm" value="<?php echo bibmet_h($komm); ?>">
+                </label>
 
-        if (strlen($namn_e) == 0){
-            echo "<script>alert('Engelskt organisationsnamn måste anges!');</script>";
-            $koll_svar = false;
-        }
-        else {
-            $koll_svar = true;
-        } 
+                <label class="bibmet-field">
+                    <span class="bibmet-field__label">ROR-id</span>
+                    <input class="bibmet-input" type="text" name="RORid" value="<?php echo bibmet_h($rorid); ?>" placeholder="05f950310 eller https://ror.org/05f950310">
+                    <span class="bibmet-field__hint">Lämna tomt om ROR-id saknas.</span>
+                </label>
+            </div>
 
-        if (strlen($orgtyp) == 0 || $orgtyp == 'Ange organisationstyp'){
-            echo "<script>alert('Organisationstyp måste anges!');</script>";
-            $koll_svar = false;
-        }
-        else {
-            $koll_svar = true;
-        }
- 
-        if ($land == 'Ange land') {
-            $land = NULL;
-        }
+            <div class="bibmet-form-actions">
+                <div class="bibmet-action-group">
+                    <input type="submit" name="spara" value="Spara organisation" class="bibmet-button bibmet-button--primary">
+                    <a href="organisationsnamn.php" class="bibmet-button bibmet-button--secondary">Avbryt</a>
+                </div>
+            </div>
+        </form>
+    </main>
+</body>
 
-        $n_org = $_SESSION['n_org'];
-
-        if (strlen($namn_l) == 0) {
-            $org_koll = $namn_e;
-        }
-        else {
-            $org_koll = $namn_l;
-        }
-
-        if ($koll_svar && $n_org <> $org_koll) {
-
-            $sql_s = "SELECT MAX(Unified_org_id)+1 AS Unified_org_id FROM Unified_org_names";
-
-            $stmt = $dbh->query( $sql_s );
-
-            foreach ($stmt as $row) {
-               $unif_org_id = $row['Unified_org_id']; 
-            }
-
-            $sql_o = "SELECT Org_type_code FROM organization_type WHERE Org_type_eng = '" . $orgtyp . "'";
-
-            $stmt = $dbh->query( $sql_o );
-
-            foreach ($stmt as $row) {
-               $org_type_code = $row['Org_type_code']; 
-            }
-                  
-            $sql_i = "INSERT INTO Unified_org_names (Unified_org_id,Name_local,Name_en,Country_name,Org_type_code,Comment,User_id,Latest_date,ROR_id) VALUES (" 
-            . $unif_org_id . ",'" . $namn_l . "','" . $namn_e . "','" . $land . "','" . $org_type_code . "','" . $komm . "','" . $username . "',GETDATE(),SUBSTRING('" . $rorid . "',1,9))";
-
-         																			            
-            $stmt = $dbh->query( $sql_i );
-
-            if ($count = $stmt->rowCount() > 0) {
-                echo '<script language="javascript">';
-                echo 'alert("Organisationen är sparad!")';
-                echo '</script>';  
-                $_SESSION['n_org'] = $org_koll;          
-            }
-            else {
-                echo '<script language="javascript">';
-                echo 'alert("Fel vid sparande av organisationen!")';
-                echo '</script>';            
-            }
-
-        }
-
-    }
-
-	// Hämta länder ur tabellen Country
-
-	$sql_c = "SELECT Display_name FROM country";
-
-	// Execute it, or let it throw an error message if there's a problem.
-
-	$stmt = $dbh->query( $sql_c );
-
-    $dropdown = "<select name='country' hidden id='id_country'>";
-
-	foreach ($stmt as $row) {
-
-    $dropdown .= "\r\n<option value='{$row['Display_name']}'>{$row['Display_name']}</option>";
-
-	}
-
-	$dropdown .= "\r\n</select>";
-
-	echo $dropdown;
-
-	// Hämta organisationstyp ur tabellen Organization_type
-
-	$sql_o = "SELECT Org_type_eng FROM organization_type";
-
-	// Execute it, or let it throw an error message if there's a problem.
-
-	$stmt = $dbh->query( $sql_o );
-
-    $dropdown = "<select name='organization_type' hidden id='id_organization_type'>";
-
-	foreach ($stmt as $row) {
-
-    $dropdown .= "\r\n<option value='{$row['Org_type_eng']}'>{$row['Org_type_eng']}</option>";
-
-	}
-
-	$dropdown .= "\r\n</select>";
-
-	echo $dropdown;
-
-?>
-
-<h2>NYTT ORGANISATIONSNAMN</h2>	
-	                                    
-		    <form action="ny_organisation.php" method="post">
-
-                <br />
-                <input type="submit" name="spara" value="Spara organisation"/>&nbsp;&nbsp;
-                <a href='organisationsnamn.php'>TILL SÖKNING</a>&nbsp;&nbsp;
-                <a href='adressmeny.php'>TILL MENYN</a>
-                <br /><br /><br /><br />   
-
-		Lokalt namn (#):</br> 
-		<input type="text" name="Namn_lok" /></br>
-		Engelskt namn (#):</br> 
-		<input type="text" name="Namn_eng" /></br>
-                Land:</br>
-                <select id="id_s_land" name="Land">
-                    <option>Ange land</option>
-                </select>
-                &nbsp;<input type="text" name="Soek_land_s" id="id_soek_land_s" onchange="f_populera_soek_Land_S()" />
-                <br />
-                Organisationstyp:</br>
-                <select id="id_s_orgtyp" name="Orgtyp">
-                    <option>Ange organisationstyp</option>
-                </select>
-                <br />	
-		Kommentar:<br /> 
-		<input type="text" name="Komm" />
-		<br />
-
-		ROR-id:<br /> 
-		<input type="text" name="RORid" />
-		<br />
-		<br />
-
-		    </form>
-
-            <p>De fält som har en # efter är obligatoriska.</p>
-								
-	</body>
 </html>

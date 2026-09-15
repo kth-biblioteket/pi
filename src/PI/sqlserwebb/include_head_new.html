@@ -1,4 +1,14 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml11/DTD/xhtml-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<h1><img src="logo-main-2013.png" alt="KTH-logga" width="48" height="48">&nbsp;&nbsp;Bibmet - Adressr&auml;ttning v1.0</h1>
+<link href="bibmet-kth.css" rel="stylesheet">
+<header class="bibmet-header">
+    <a class="bibmet-header__home" href="adressmeny.php" aria-label="Gå till adressrättningsmenyn">
+        <img class="bibmet-header__logo" src="logo-main-2013.png" alt="KTH-logga" width="48" height="48">
+        <span class="bibmet-header__text">
+            <span class="bibmet-header__system">Bibmet</span>
+            <span class="bibmet-header__area">Adressrättning</span>
+        </span>
+    </a>
+    <?php if (session_status() === PHP_SESSION_ACTIVE && isset($_SESSION['anv']) && isset($_SESSION['ord']) && $_SESSION['anv'] !== '' && $_SESSION['ord'] !== '') : ?>
+        <a class="bibmet-header__logout" href="logout.php">Logga ut</a>
+    <?php endif; ?>
+</header>
+<script src="session-guard.js"></script>

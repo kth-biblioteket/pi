@@ -1,122 +1,109 @@
-﻿<?php session_start(); ?>
-
-<!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
-<! Författare: Cecilia Wiklander>
-<! Syfte: Adressrättnings-hantering>
-<! Ändringar: >
-
-<head>
-
-    <meta charset="utf-8">
-
-    <title>TA BORT REGEL ORGANISATIONSTYP</title>
-	
-    <link href="Site.css" rel="stylesheet"> 
-        
-</script>
-	
-</head>
-
-<body>
-
-<?php include('include_head_new.html'); ?>
-
 <?php
-    
-    $regel_id = $_GET["Regel_id"];
+require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
-    if (intval($regel_id) > 0) {
+$dbh = bibmet_sqlsrv_connect_or_redirect();
 
-        $_SESSION['regel_id'] = $regel_id;
+$regel_id = isset($_GET["Regel_id"]) ? (string) $_GET["Regel_id"] : "";
+$errors = [];
+$rule = null;
 
-        $username = $_SESSION['anv'];
-        $password = $_SESSION['ord'];
-        $hostname = $_SESSION['hnamn'];
-        $dbname = $_SESSION['dbnamn'];
+if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
+    $errors[] = "Ogiltigt regel-id.";
+} else {
+    $_SESSION['regel_id'] = $regel_id;
 
-        $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
+    try {
+        $sql = "SELECT R_o_t_m_id, Find_country, Country_code, Find_city, Find_org_1, Find_org_2,
+            Find_org_not, Country, City, Org_type_code, User_id, Rule_date
+            FROM rule_org_type_match
+            WHERE R_o_t_m_id = :regel_id";
 
-        $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $stmt = $dbh->prepare($sql);
+        $stmt->bindValue(":regel_id", (int) $regel_id, PDO::PARAM_INT);
+        $stmt->execute();
+        $rule = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // Visa regeln att ta bort
-
-    	$sql = "SELECT R_o_t_m_id,Find_country,Country_code,Find_city,Find_org_1,Find_org_2,Find_org_not,Country,City,Org_type_code,User_id,Rule_date 
-        FROM rule_org_type_match    
-        WHERE R_o_t_m_id = " . $regel_id;
-
-        $stmt = $dbh->query( $sql );
-
-    	foreach ($stmt as $row) {
-            $land_s = $row['Find_country'];
-            $land_h_1 = $row['Country'];
-            $stad_s = $row['Find_city'];
-            $stad_h_1 = $row['City'];
-            $org_s_1 = $row['Find_org_1'];
-            $org_s_2 = $row['Find_org_2'];
-            $org_s_ej = $row['Find_org_ej'];
-            $land_kod = $row['Country_code'];
-            $r_o_t_m_id = $row['R_o_t_m_id'];
-            $org_type_code = $row['Org_type_code'];             
-            $user_id = $row['User_id'];
-            $rule_date = $row['Rule_date'];                                                                                                       
-    	}
-
-        $_SESSION['land_s'] = $land_s;
-        $_SESSION['land_1'] = $land_h_1;
-        $_SESSION['stad_s'] = $stad_s;
-        $_SESSION['stad_1'] = $stad_h_1;
-        $_SESSION['org_s_1'] = $org_s_1;
-        $_SESSION['org_s_2'] = $org_s_2;
-        $_SESSION['org_s_ej'] = $org_s_ej;
-        $_SESSION['land_kod'] = $land_kod;
-        $_SESSION['org_type_code'] = $org_type_code;
-        $_SESSION['r_o_t_m_id'] = $r_o_t_m_id;
-        $_SESSION['user_id'] = $user_id;
-        $_SESSION['rule_date'] = $rule_date;
-
+        if (!$rule) {
+            $errors[] = "Regeln hittades inte.";
+        }
+    } catch (PDOException $e) {
+        $errors[] = "Regeln kunde inte hämtas.";
     }
-
+}
 ?>
 
-<h2>TA BORT REGEL ORGANISATIONSTYP</h2>	
-	                                    
-		    <form action="ta_bort_regel_resultat_o_typ.php" method="post">
+<!DOCTYPE html>
+<html lang="sv">
 
-                <input type="submit" name="radera" value="Radera regel"/>&nbsp;&nbsp;
-                <a href='regel_organisation_typ.php'>TILL SÖKNING</a>&nbsp;&nbsp;
-                <a href='adressmeny.php'>TILL MENYN</a>
-                <br /><br />
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ta bort regel organisationstyp</title>
+    <link href="Site.css" rel="stylesheet">
+    <?php include("include_bibmet_kth.html"); ?>
+</head>
 
-                <h3>SÖKFÄLT</h3>    
-                
-                Land:</br>
-                <input type="text" name="Land" id="id_land_s" value="<?php echo $land_s; ?>" disabled/>
-                <br />
-			    Stad:</br> 
-				<input type="text" name="Stad" id="id_s_stad" value="<?php echo $stad_s; ?>" disabled />
-                <br />
-			    Organisation, sträng 1:</br> 
-				<input type="text" name="Organisation1" id="id_s_org_1" value="<?php echo $org_s_1; ?>" disabled /><br />
-			    Organisation, sträng 2:</br> 
-				<input type="text" name="Organisation2" id="id_s_org_2" value="<?php echo $org_s_2; ?>" disabled /><br />
-			    Organisation, sträng ej:</br> 
-				<input type="text" name="Organisationej" id="id_s_org_ej" value="<?php echo $org_s_ej; ?>" disabled /><br />
-				
-				<h3>ÄNDRINGSFÄLT</h3>
-				               				
-                Organisationstyp:<br />
-                <input type="text" name="Orgtypkod" id="id_h_org_kod" value="<?php echo $org_type_code; ?>" disabled />				
-                <br />
-			    Annat land:<br />
-                <input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" size="20" value="<?php echo $land_h_1; ?>" disabled/>				
-                <br />				
-				Annan stad:<br /> 
-				<input type="text" name="Annan_stad_1" id="h_id_stad_1" value="<?php echo $stad_h_1; ?>" disabled /><br />
-				<br />			
-				
-		    </form>
-								
-	</body>
+<body class="bibmet-body">
+    <?php include('include_head_new.html'); ?>
+
+    <main class="bibmet-main">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Adressrättningsregler</p>
+                    <h1 class="bibmet-title">Ta bort regel organisationstyp</h1>
+                    <p class="bibmet-muted">Kontrollera regeln innan borttagning.</p>
+                </div>
+                <div class="bibmet-action-group">
+                    <a href="regel_organisation_typ.php" class="bibmet-button bibmet-button--primary">Till sökning</a>
+                    <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
+                </div>
+            </div>
+        </section>
+
+        <?php if ($errors) : ?>
+            <div class="bibmet-alert" role="alert">
+                <?php foreach ($errors as $error) : ?>
+                    <p><?php echo bibmet_h($error); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php
+        if ($rule) {
+            bibmet_render_summary_panel("Regel", [
+                "Regel-id" => $rule['R_o_t_m_id'] ?? null,
+                "Land" => $rule['Find_country'] ?? null,
+                "Stad" => $rule['Find_city'] ?? null,
+                "Organisation, sträng 1" => $rule['Find_org_1'] ?? null,
+                "Organisation, sträng 2" => $rule['Find_org_2'] ?? null,
+                "Organisation, sträng ej" => $rule['Find_org_not'] ?? null,
+                "Organisationstyp" => $rule['Org_type_code'] ?? null,
+                "Annat land" => $rule['Country'] ?? null,
+                "Annan stad" => $rule['City'] ?? null,
+            ]);
+        }
+        ?>
+
+        <?php if ($rule) : ?>
+            <section class="bibmet-panel">
+                <div class="bibmet-panel__header">
+                    <h2 class="bibmet-panel__title">Bekräfta borttagning</h2>
+                </div>
+                <div class="bibmet-panel__body">
+                    <form action="ta_bort_regel_resultat_o_typ.php" method="post" class="bibmet-form-grid bibmet-form-grid--narrow">
+                        <input type="hidden" name="Regel_id" value="<?php echo bibmet_h($regel_id); ?>">
+
+                        <div class="bibmet-action-group">
+                            <button type="submit" name="radera" value="1" class="bibmet-button bibmet-button--danger">Radera regel</button>
+                            <a href="regel_organisation_typ.php" class="bibmet-button bibmet-button--secondary">Avbryt</a>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        <?php endif; ?>
+    </main>
+</body>
+
 </html>

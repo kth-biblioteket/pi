@@ -1,187 +1,154 @@
-﻿<?php session_start(); ?>
-
-<!DOCTYPE html PUBLIC "-//w3c//DTD XHTMLm 1.0 Transitional//EN"
-"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-
-<! Författare: Cecilia Wiklander>
-<! Syfte: Adressrättnings-hantering>
-<! Ändringar: >
-
-<head>
-
-    <meta charset="utf-8">
-
-    <title>TA BORT REGEL CENTRA</title>
-	
-    <link href="Site.css" rel="stylesheet"> 
-	
-</head>
-
-<body>
-
-<?php include('include_head_new.html'); ?>
-
 <?php
-    
-    $regel_id = $_SESSION['regel_id'];
+require_once __DIR__ . '/sqlsrv_connect.php';
+require_once __DIR__ . '/bibmet_ui.php';
 
-    $username = $_SESSION['anv'];
-    $password = $_SESSION['ord'];
-    $hostname = $_SESSION['hnamn'];
-    $dbname = $_SESSION['dbnamn'];
+$dbh = bibmet_sqlsrv_connect_or_redirect();
 
-    $dbh = new PDO("sqlsrv:Server=$hostname;Database=$dbname",$username,$password);
+$regel_id = isset($_POST['Regel_id']) ? (string) $_POST['Regel_id'] : (isset($_GET['Regel_id']) ? (string) $_GET['Regel_id'] : (isset($_SESSION['regel_id']) ? (string) $_SESSION['regel_id'] : ""));
+$reason = isset($_POST['orsak']) ? trim((string) $_POST['orsak']) : "";
+$successMessages = [];
+$warningMessages = [];
+$errors = [];
+$archiveWarning = "";
+$deleted = false;
+$ruleSummary = null;
 
-    $dbh->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+if (!ctype_digit($regel_id) || (int) $regel_id <= 0) {
+    $errors[] = "Ogiltigt regel-id.";
+} elseif ($reason === "") {
+    $errors[] = "Orsak måste anges.";
+} elseif (isset($_SESSION['b_regel_c_id']) && (string) $_SESSION['b_regel_c_id'] === $regel_id) {
+    $successMessages[] = "Regeln är redan borttagen i den här sessionen.";
+    $deleted = true;
+} else {
+    try {
+        $dbh->beginTransaction();
 
-    $b_regel_c_id = $_SESSION['b_regel_c_id'];
+        $selectStmt = $dbh->prepare("SELECT r.*, o1.Name_en + ' [' + o1.Country_name + ']' AS Orgname_1,
+            o2.Name_en + ' [' + o2.Country_name + ']' AS Orgname_2,
+            o3.Name_en + ' [' + o3.Country_name + ']' AS Orgname_3
+            FROM rule_center_match r
+            JOIN unified_org_names o1 ON r.Org_id_1 = o1.Unified_org_id
+            LEFT JOIN unified_org_names o2 ON r.Org_id_2 = o2.Unified_org_id
+            LEFT JOIN unified_org_names o3 ON r.Org_id_3 = o3.Unified_org_id
+            WHERE r.R_c_m_id = :regel_id");
+        $selectStmt->bindValue(":regel_id", (int) $regel_id, PDO::PARAM_INT);
+        $selectStmt->execute();
+        $rule = $selectStmt->fetch(PDO::FETCH_ASSOC);
+        $ruleSummary = $rule ?: null;
 
-    if ($b_regel_c_id <> $regel_id) {
+        if (!$rule) {
+            $errors[] = "Regeln hittades inte eller är redan borttagen.";
+            $dbh->rollBack();
+        } else {
+            try {
+                $archiveSql = "INSERT INTO Removed_rules (
+                    R_c_m_id, Find_country, Country_code, Find_city, Find_org, Divide,
+                    Country_1, City_1, Org_id_1, Country_2, City_2, Org_id_2, Country_3, City_3, Org_id_3,
+                    User_id, Rule_date, Remove_user_id, Remove_date, Reason
+                ) VALUES (
+                    :R_c_m_id, :Find_country, :Country_code, :Find_city, :Find_org, :Divide,
+                    :Country_1, :City_1, :Org_id_1, :Country_2, :City_2, :Org_id_2, :Country_3, :City_3, :Org_id_3,
+                    :User_id, :Rule_date, :Remove_user_id, CURRENT_TIMESTAMP, :Reason
+                )";
+                $archiveStmt = $dbh->prepare($archiveSql);
+                bibmet_set_query_timeout($archiveStmt, 3);
+                foreach ([
+                    'R_c_m_id', 'Find_country', 'Country_code', 'Find_city', 'Find_org', 'Divide',
+                    'Country_1', 'City_1', 'Org_id_1', 'Country_2', 'City_2', 'Org_id_2', 'Country_3', 'City_3', 'Org_id_3',
+                    'User_id', 'Rule_date',
+                ] as $column) {
+                    $archiveStmt->bindValue(':' . $column, $rule[$column] ?? null);
+                }
+                $archiveStmt->bindValue(':Remove_user_id', isset($_SESSION['anv']) ? $_SESSION['anv'] : '');
+                $archiveStmt->bindValue(':Reason', $reason);
+                $archiveStmt->execute();
+            } catch (PDOException $e) {
+                $archiveWarning = "Regeln kunde inte arkiveras i Removed_rules, men borttagningen fortsatte.";
+            }
 
-        // Spara undan regeln
+            $deleteStmt = $dbh->prepare("DELETE FROM rule_center_match WHERE R_c_m_id = :regel_id");
+            bibmet_set_query_timeout($deleteStmt, 10);
+            $deleteStmt->bindValue(":regel_id", (int) $regel_id, PDO::PARAM_INT);
+            $deleteStmt->execute();
 
-        $land_s = $_SESSION['land_s'];
-        $land_1 = $_SESSION['land_1'];
-        $land_2 = $_SESSION['land_2'];
-        $land_3 = $_SESSION['land_3'];
-        $stad_s = $_SESSION['stad_s'];
-        $stad_1 = $_SESSION['stad_1'];
-        $stad_2 = $_SESSION['stad_2'];
-        $stad_3 = $_SESSION['stad_3'];
-        $org_s = $_SESSION['org_s'];
-        $delas = $_SESSION['delas'];
-        $org_id_1 = $_SESSION['org_id_1'];
-        $org_id_2 = $_SESSION['org_id_2'];
-        $org_id_3 = $_SESSION['org_id_3'];
-        $land_kod = $_SESSION['land_kod'];
-        $r_c_m_id = $_SESSION['r_c_m_id'];
-        $user_id = $_SESSION['user_id'];
-        $rule_date = $_SESSION['rule_date']; 
-        $orsak = $_POST["orsak"];
-
-	$Sk = "'";
-	$Ers = "''";
-
-	$stad_s = str_replace($Sk, $Ers, $stad_s);
-	$org_s = str_replace($Sk, $Ers, $org_s);
-	$stad_1 = str_replace($Sk, $Ers, $stad_1);
-	$stad_2 = str_replace($Sk, $Ers, $stad_2);
-	$stad_3 = str_replace($Sk, $Ers, $stad_3);
-	$land_s = str_replace($Sk, $Ers, $land_s);
-	$land_1 = str_replace($Sk, $Ers, $land_1);
-	$land_2 = str_replace($Sk, $Ers, $land_2);
-	$land_3 = str_replace($Sk, $Ers, $land_3);
-
-        if ($delas = 1) {
-            $sql_i = "INSERT INTO Removed_rules (R_c_m_id,
-            Find_country,Country_code,Find_city,Find_org,Divide,
-            Country_1,City_1,Org_id_1,
-            User_id,Rule_date,Remove_user_id,Remove_date,Reason) VALUES
-            (" . $r_c_m_id . ",'" . $land_s . "','" . $land_kod . "','" . $stad_s . "','" . $org_s . "'," 
-            . $delas . ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $user_id . "','" 
-            . $rule_date . "','" . $username . "',GETDATE(),'" . $orsak . "')";
+            if ($deleteStmt->rowCount() > 0) {
+                $_SESSION['b_regel_c_id'] = $regel_id;
+                $deleted = true;
+                $successMessages[] = "Regeln är borttagen.";
+                if ($archiveWarning !== "") {
+                    $warningMessages[] = $archiveWarning;
+                }
+                $dbh->commit();
+            } else {
+                $errors[] = "Fel vid borttagande av regeln.";
+                $dbh->rollBack();
+            }
         }
-        elseif ($delas = 2) {
-            $sql_i = "INSERT INTO Removed_rules (R_c_m_id,
-            Find_country,Country_code,Find_city,Find_org,Divide,
-            Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,
-            User_id,Rule_date,Remove_user_id,Remove_date,Reason) VALUES
-            (" . $r_c_m_id . ",'" . $land_s . "','" . $land_kod . "','" . $stad_s . "','" . $org_s . "'," 
-            . $delas . ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 . 
-            "'," . $org_id_2 . ",'" . $user_id . "','" 
-            . $rule_date . "','" . $username . "',GETDATE(),'" . $orsak . "')";
+    } catch (PDOException $e) {
+        if ($dbh->inTransaction()) {
+            $dbh->rollBack();
         }
-        else {
-            $sql_i = "INSERT INTO Removed_rules (R_c_m_id,
-            Find_country,Country_code,Find_city,Find_org,Divide,
-            Country_1,City_1,Org_id_1,Country_2,City_2,Org_id_2,Country_3,City_3,Org_id_3,
-            User_id,Rule_date,Remove_user_id,Remove_date,Reason) VALUES
-            (" . $r_c_m_id . ",'" . $land_s . "','" . $land_kod . "','" . $stad_s . "','" . $org_s . "'," 
-            . $delas . ",'" . $land_1 . "','" . $stad_1 . "'," . $org_id_1 . ",'" . $land_2 . "','" . $stad_2 . 
-            "'," . $org_id_2 . ",'" . $land_3 . "','" . $stad_3 . "'," . $org_id_3 . ",'" . $user_id . "','" 
-            . $rule_date . "','" . $username . "',GETDATE(),'" . $orsak . "')";
-        }
-
-        $stmt = $dbh->query( $sql_i );
-
-        // Ta bort regeln
-
-	    $sql = "DELETE FROM rule_center_match WHERE R_c_m_id = " . $regel_id;
-
-        $stmt = $dbh->query( $sql );
-
-        if ($count = $stmt->rowCount() > 0) {
-            echo '<script language="javascript">';
-            echo 'alert("Regeln är borttagen!")';
-            echo '</script>'; 
-            $_SESSION['b_regel_c_id'] = $regel_id;           
-        }
-        else {
-            echo '<script language="javascript">';
-            echo 'alert("Fel vid borttagande av regeln!")';
-            echo '</script>';            
-        }
+        $errors[] = "Fel vid borttagande av regeln.";
     }
+}
 ?>
 
-<h2>TA BORT REGEL CENTRA</h2>	
-	                                    
-		    <form action="ta_bort_regel_resultat_c.php" method="post">
+<!DOCTYPE html>
+<html lang="sv">
 
-                <input type="submit" name="radera" value="Radera regel" disabled />&nbsp;&nbsp;
-                <a href='regel_centra.php'>TILL SÖKNING</a>&nbsp;&nbsp;
-                <a href='adressmeny.php'>TILL MENYN</a>
-                <br /><br />
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ta bort regel centra</title>
+    <link href="Site.css" rel="stylesheet">
+    <?php include("include_bibmet_kth.html"); ?>
+</head>
 
-                <h3>SÖKFÄLT</h3>    
-                
-                Land:</br>
-                <input type="text" name="Land" id="id_land_s" disabled />
-                <br />
-			    Stad:</br> 
-				<input type="text" name="Stad" id="id_s_stad" disabled />
-                <br />
-			    Organisationsnamn:</br> 
-				<input type="text" name="Organisation" id="id_s_org" disabled /><br />
-				
-				<h3>ÄNDRINGSFÄLT</h3>
-			    Delas i:</br>
-				<input type="text" name="Delas" id="id_h_delas" size="1" disabled /><br /><br />
-				
-				<b>Organisation 1:</b><br />
-				Annat organisationsnamn:<br />
-                <input type="text" name="Soek_org_h_1" id="id_soek_org_h_1" size="20" disabled />				
-                <br />
-			    Annat land:<br />
-                <input type="text" name="Soek_land_h_1" id="id_soek_land_h_1" size="20" disabled />				
-                <br />				
-				Annan stad:<br /> 
-				<input type="text" name="Annan_stad_1" id="h_id_stad_1" disabled /><br />
-				<br />
-						
-				<b>Organisation 2:</b><br />
-				Annat organisationsnamn:<br />
-                <input type="text" name="Soek_org_h_2" id="id_soek_org_h_2" size="20" disabled />					
-                <br />
-			    Annat land:<br />
-                <input type="text" name="Soek_land_h_2" id="id_soek_land_h_2" disabled />					
-				<br />
-				Annan stad:<br /> 
-				<input type="text" name="Annan_stad_2" id="h_id_stad_2" disabled /><br />
-				<br />
-				
-				<b>Organisation 3:</b><br />
-				Annat organisationsnamn:<br />
-                <input type="text" name="Soek_org_h_3" id="id_soek_org_h_3" size="20" disabled />					
-                <br />
-			    Annat land:<br />
-                <input type="text" name="Soek_land_h_3" id="id_soek_land_h_3" size="20" disabled />					
-				<br />
-				Annan stad:<br /> 
-				<input type="text" name="Annan_stad_3" id="h_id_stad_3" disabled /><br />
-				<br />				
-				
-		    </form>
-								
-	</body>
+<body class="bibmet-body">
+    <?php include('include_head_new.html'); ?>
+
+    <main class="bibmet-main">
+        <section class="bibmet-hero">
+            <div class="bibmet-hero__row">
+                <div>
+                    <p class="bibmet-eyebrow">Adressrättningsregler</p>
+                    <h1 class="bibmet-title">Ta bort regel centra</h1>
+                    <p class="bibmet-muted">Regel-id: <?php echo bibmet_h($regel_id); ?></p>
+                </div>
+                <div class="bibmet-action-group">
+                    <a href="regel_centra.php" class="bibmet-button bibmet-button--primary">Till sökning</a>
+                    <a href="adressmeny.php" class="bibmet-button bibmet-button--secondary">Till menyn</a>
+                </div>
+            </div>
+        </section>
+
+        <?php
+        if ($ruleSummary) {
+            bibmet_render_summary_panel("Regel", [
+                "Regel-id" => $ruleSummary['R_c_m_id'] ?? null,
+                "Land" => $ruleSummary['Find_country'] ?? null,
+                "Stad" => $ruleSummary['Find_city'] ?? null,
+                "Organisationsnamn" => $ruleSummary['Find_org'] ?? null,
+                "Delas i" => $ruleSummary['Divide'] ?? null,
+                "Organisation 1" => $ruleSummary['Orgname_1'] ?? null,
+                "Organisation 2" => $ruleSummary['Orgname_2'] ?? null,
+                "Organisation 3" => $ruleSummary['Orgname_3'] ?? null,
+            ]);
+        }
+        ?>
+
+        <?php if ($errors) : ?>
+            <div class="bibmet-alert" role="alert">
+                <?php foreach ($errors as $error) : ?>
+                    <p><?php echo bibmet_h($error); ?></p>
+                <?php endforeach; ?>
+            </div>
+        <?php endif; ?>
+
+        <?php bibmet_render_messages_panel($deleted ? "Borttagning klar" : "Resultat", $successMessages, "success"); ?>
+        <?php bibmet_render_messages_panel("Varning", $warningMessages, "warning"); ?>
+    </main>
+</body>
+
 </html>
