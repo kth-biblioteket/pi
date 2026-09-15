@@ -2,7 +2,7 @@
 require_once __DIR__ . '/sqlsrv_connect.php';
 require_once __DIR__ . '/bibmet_ui.php';
 
-$dbh = bibmet_sqlsrv_connect_or_redirect();
+$dbh = bibmet_sqlsrv_connect_or_redirect('BIBMET');
 
 $errors = [];
 $runDates = [
