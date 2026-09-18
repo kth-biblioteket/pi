@@ -37,9 +37,15 @@ if (isset($_POST['behandla']) && !$validImportToken) {
 if ($validImportToken) {
     unset($_SESSION['diva_import_token']);
 
+    try {
     // Large WoS files can take longer than PHP's default 30s limit,
     // especially when split into multiple output files and emails.
-    set_time_limit(0);
+    // Keep the default finite; set DIVA_IMPORT_TIMEOUT_SECONDS=0 to keep PHP's current limit.
+    $processingTimeoutEnv = getenv('DIVA_IMPORT_TIMEOUT_SECONDS');
+    $processingTimeoutSeconds = $processingTimeoutEnv !== false ? (int) $processingTimeoutEnv : 900;
+    if ($processingTimeoutSeconds > 0) {
+        set_time_limit($processingTimeoutSeconds);
+    }
 
     $timingEnabled = getenv('DIVA_IMPORT_TIMING') !== false;
     $timingStart = microtime(true);
@@ -60,6 +66,9 @@ if ($validImportToken) {
 
     if (!$username || !$password) {
         echo 'Du måste logga in innan filen behandlas.';
+        if (!isset($_SESSION['diva_import_token'])) {
+            $_SESSION['diva_import_token'] = bin2hex(random_bytes(16));
+        }
         exit;
     }
 
@@ -73,7 +82,7 @@ if ($validImportToken) {
         $mail = new PHPMailer; 
 	$mail->isSMTP(); 
 	$mail->Host = getenv('SMTP_HOST') ?: "relayhost.sys.kth.se";
-        $mail->Port = getenv('SMTP_PORT') ?: 587;
+        $mail->Port = (int) (getenv('SMTP_PORT') ?: 587);
 	$mail->SMTPAuth   = FALSE; 
 	$mail->SMTPSecure = getenv('SMTP_SECURE') !== false ? getenv('SMTP_SECURE') : "tls";
         $mail->SMTPKeepAlive = true;
@@ -81,6 +90,8 @@ if ($validImportToken) {
         $mail->CharSet = 'UTF-8';
         $message = 'Alla behandlade filer finns bifogade.';
         $generatedFileCount = 0;
+        $emailDeliveryAttempted = false;
+        $emailSent = false;
         $addGeneratedFile = function ($fileName, $handle) use ($mail, &$generatedFileCount) {
            rewind($handle);
            $mail->addStringAttachment(stream_get_contents($handle), basename($fileName));
@@ -113,41 +124,64 @@ if ($validImportToken) {
     }
     else {
         $KTH_dela_fil = FALSE;         
-    }   
+    }
+
+    $handlaggare = $_POST['Handl'] ?? '';
+    $filtypLabel = $Filtyp == 'wos' ? 'WoS' : 'Scopus';
+    $kthLedtradLabel = $KTH_l_t == 'med' ? 'Med' : 'Utan';
+    $kthDelaFilLabel = $KTH_d_f == 'ja' ? 'Ja' : 'Nej';
 
 
 
-    // Limit uploads because generated output files are kept in RAM and attached
-    // to one email. Override with DIVA_IMPORT_MAX_UPLOAD_BYTES if needed.
+    // Limit uploads because generated output files are attached to one email.
+    // Override with DIVA_IMPORT_MAX_UPLOAD_BYTES if needed.
     $maxUploadSizeBytes = (int) (getenv('DIVA_IMPORT_MAX_UPLOAD_BYTES') ?: 10000000);
 
-    $uploadedFileName = basename($_FILES["fileToUpload"]["name"]);
-    $target_file = $_FILES["fileToUpload"]["tmp_name"];
-    $imageFileType = strtolower(pathinfo($uploadedFileName,PATHINFO_EXTENSION));
     $uploadOk = 1;
-    
-    // Kontrollera filtyp
-    if($imageFileType != "txt" ) {
-           echo "Tyvärr, enbart txt-filer tillåts";
-           $uploadOk = 0;
+    $uploadedFile = $_FILES["fileToUpload"] ?? null;
+    $uploadError = $uploadedFile['error'] ?? UPLOAD_ERR_NO_FILE;
+
+    if ($uploadError !== UPLOAD_ERR_OK) {
+          $uploadMessages = array(
+              UPLOAD_ERR_INI_SIZE => 'Tyvärr, filen är större än serverns tillåtna maxstorlek.',
+              UPLOAD_ERR_FORM_SIZE => 'Tyvärr, filen är för stor.',
+              UPLOAD_ERR_PARTIAL => 'Tyvärr, filen laddades bara upp delvis.',
+              UPLOAD_ERR_NO_FILE => 'Tyvärr, ingen fil laddades upp.',
+              UPLOAD_ERR_NO_TMP_DIR => 'Tyvärr, servern saknar temporär uppladdningskatalog.',
+              UPLOAD_ERR_CANT_WRITE => 'Tyvärr, servern kunde inte spara den uppladdade filen.',
+              UPLOAD_ERR_EXTENSION => 'Tyvärr, uppladdningen stoppades av servern.'
+          );
+          echo $uploadMessages[$uploadError] ?? 'Tyvärr, filen gick inte att ladda upp.';
+          $uploadOk = 0;
     }
     else {
-          // Kontrollera filstorlek
-          if ($_FILES["fileToUpload"]["size"] > $maxUploadSizeBytes) {
-              echo "Tyvärr, filen är för stor.";
-              $uploadOk = 0;
-          }
-          elseif (!is_uploaded_file($target_file)) {
-              echo "Tyvärr, filen gick inte att ladda upp.";
-              $uploadOk = 0;
+          $uploadedFileName = basename($uploadedFile["name"]);
+          $target_file = $uploadedFile["tmp_name"];
+          $imageFileType = strtolower(pathinfo($uploadedFileName,PATHINFO_EXTENSION));
+
+          // Kontrollera filtyp
+          if($imageFileType != "txt" ) {
+                 echo "Tyvärr, enbart txt-filer tillåts";
+                 $uploadOk = 0;
           }
           else {
-                if (strpos($uploadedFileName, ' ') !== false) {
-                   echo "Tyvärr, filnamnet får inte innehålla blanktecken.";
-                   $uploadOk = 0;                        
+                // Kontrollera filstorlek
+                if ($uploadedFile["size"] > $maxUploadSizeBytes) {
+                    echo "Tyvärr, filen är för stor.";
+                    $uploadOk = 0;
+                }
+                elseif (!is_uploaded_file($target_file)) {
+                    echo "Tyvärr, filen gick inte att ladda upp.";
+                    $uploadOk = 0;
                 }
                 else {
-                   echo "Filen " . htmlspecialchars($uploadedFileName) . " har laddats upp.";
+                      if (strpos($uploadedFileName, ' ') !== false) {
+                         echo "Tyvärr, filnamnet får inte innehålla blanktecken.";
+                         $uploadOk = 0;                        
+                      }
+                      else {
+                         echo "Filen " . htmlspecialchars($uploadedFileName) . " har laddats upp.";
+                      }
                 }
           }
     }    
@@ -172,7 +206,7 @@ if ($validImportToken) {
 
     // Fil att skriva ut
     $filnamn_ut = preg_replace('/\.txt$/i', '', $uploadedFileName);
-    $handl = $_POST['Handl'];
+    $handl = $handlaggare;
     if (strlen($handl) > 0) {
        $handl = '_' . $handl;
     }
@@ -207,14 +241,32 @@ if ($validImportToken) {
               $stmt = $pdo->prepare('INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES ' . implode(',', $placeholders));
               $stmt->execute($params);
           }
-          catch (Exception $e) {
+          catch (PDOException $e) {
+              $sqlState = $e->errorInfo[0] ?? $e->getCode();
+              $driverCode = isset($e->errorInfo[1]) ? (int) $e->errorInfo[1] : 0;
+              $isExpectedRowError = in_array(substr((string) $sqlState, 0, 2), array('22', '23'), true)
+                  || in_array($driverCode, array(1264, 1366, 1406), true);
+
+              if (!$isExpectedRowError) {
+                  throw $e;
+              }
+
               $stmt = $pdo->prepare('INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES (?,?,?,?)');
               $stmt_fel = $pdo->prepare("INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES (?,?,?,'FEL')");
               foreach ($filradBatch as $row) {
                   try {
                       $stmt->execute($row);
                   }
-                  catch (Exception $singleException) {
+                  catch (PDOException $singleException) {
+                      $singleSqlState = $singleException->errorInfo[0] ?? $singleException->getCode();
+                      $singleDriverCode = isset($singleException->errorInfo[1]) ? (int) $singleException->errorInfo[1] : 0;
+                      $isExpectedSingleRowError = in_array(substr((string) $singleSqlState, 0, 2), array('22', '23'), true)
+                          || in_array($singleDriverCode, array(1264, 1366, 1406), true);
+
+                      if (!$isExpectedSingleRowError) {
+                          throw $singleException;
+                      }
+
                       $stmt_fel->execute(array($row[0], $row[1], $row[2]));
                   }
               }
@@ -628,7 +680,7 @@ if ($validImportToken) {
                if ($Radnr == 1) {
                      // Öppna ny fil för utskrift
                      $filnamn = $filnamn_ut . '_' . $filnamnsslut . '.txt';                   
-                     $fp_ut = fopen('php://memory', 'w+');   
+                     $fp_ut = fopen('php://temp', 'w+');   
                                         
                }
                
@@ -638,7 +690,7 @@ if ($validImportToken) {
                      // Öppna ny fil för utskrift
                      $filnamnsslut = (string) ($antal_skrivna_filer + 1);
                      $filnamn = $filnamn_ut . '_' . $filnamnsslut . '.txt';                     
-                     $fp_ut = fopen('php://memory', 'w+'); 
+                     $fp_ut = fopen('php://temp', 'w+'); 
                      
                      // Inledande rader i filen 
                      $line = $rad_f_1 . PHP_EOL;
@@ -696,7 +748,7 @@ if ($validImportToken) {
 
         // Öppna ny fil för utskrift
         $filnamn_ut = $filnamn_ut . '.txt';         
-        $fp_ut = fopen('php://memory', 'w+');
+        $fp_ut = fopen('php://temp', 'w+');
         // Läs tabellerna
         $stmt_ut = $pdo->prepare("SELECT filrad.Radnr, filrad.Rad, filrad.Postnr AS fPostnr, filrad.KTHff, tabortff.Postnr AS tPostnr, 
         tabortff.AntalKTH, tabortff.Antalff, tabortff.MinRadnrAF,   tabortff.MaxRadnrAF 
@@ -809,7 +861,7 @@ if ($validImportToken) {
      } // Slut på dela utfil i flera eller ej 2021-04-06 CEWI    
         
         // Öppna listfil för antal författare
-        $fp_lista = fopen('php://memory', 'w+');
+        $fp_lista = fopen('php://temp', 'w+');
         $stmt_lista = $pdo->prepare("SELECT SUBSTRING(f.Rad,4) AS Rad_utan, t.Antalff FROM tabortff t JOIN filrad f ON t.Postnr = f.Postnr 
         WHERE SUBSTRING(f.Rad,1,2) = 'TI' AND t.Persondatum = :DatumTid AND t.Persondatum = f.Persondatum ORDER BY t.Postnr");
         $stmt_lista->bindParam(':DatumTid', $DatumTid);
@@ -828,6 +880,10 @@ if ($validImportToken) {
         $logTiming('generate email attachments');
         $message = "Din WoS-fil har behandlats klart." . PHP_EOL . PHP_EOL .
                    "Inskickad fil: " . $uploadedFileName . PHP_EOL .
+                   "Vald filtyp: " . $filtypLabel . PHP_EOL .
+                   "Vald KTH-ledtråd: " . $kthLedtradLabel . PHP_EOL .
+                   "Vald delning i filer med 25 poster: " . $kthDelaFilLabel . PHP_EOL .
+                   "Vald handläggare: " . ($handlaggare !== '' ? $handlaggare : '-') . PHP_EOL .
                    "Antal skapade filer: " . $generatedFileCount . PHP_EOL . PHP_EOL .
                    "Alla behandlade filer finns bifogade.";
 
@@ -836,14 +892,19 @@ if ($validImportToken) {
         $mail->addAddress($Epost);
         $mail->Subject  = 'Behandlade filer: ' . $uploadedFileName;
         $mail->Body     = $message;
+        $emailDeliveryAttempted = true;
         if(!$mail->send()) {
+           $emailSent = false;
            $logTiming('send email failed');
            echo ' Fel vid skickande av meddelande.';
            echo ' Fel: ' . $mail->ErrorInfo;
+           $doneMessage = 'Filen är klar, men e-postleveransen misslyckades.';
         }
         else {
+           $emailSent = true;
            $logTiming('send email');
            echo ' Nya filer har skickats.';
+           $doneMessage = 'Filen är klar. Behandlade filer har skickats via e-post.';
         }
      
     // *** Slut Wos-delen ***
@@ -888,9 +949,19 @@ if ($validImportToken) {
     $stmt->bindParam(':DatumTid', $DatumTid);
     $stmt->execute();
 
-    $doneMessage = 'Filen är klar. Behandlade filer har skickats via e-post.';
+    if ($doneMessage === '') {
+        $doneMessage = $emailDeliveryAttempted && $emailSent
+            ? 'Filen är klar. Behandlade filer har skickats via e-post.'
+            : 'Filen är klar.';
+    }
 
  }
+    }
+    finally {
+        if (!isset($_SESSION['diva_import_token'])) {
+            $_SESSION['diva_import_token'] = bin2hex(random_bytes(16));
+        }
+    }
 }
 
 if (!isset($_SESSION['diva_import_token'])) {
