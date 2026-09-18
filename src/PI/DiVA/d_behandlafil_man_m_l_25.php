@@ -37,6 +37,12 @@ if (isset($_POST['behandla']) && !$validImportToken) {
 if ($validImportToken) {
     unset($_SESSION['diva_import_token']);
 
+    $pdo = null;
+    $mail = null;
+    $fh_in = null;
+    $fp_ut = null;
+    $fp_lista = null;
+
     try {
     // Large WoS files can take longer than PHP's default 30s limit,
     // especially when split into multiple output files and emails.
@@ -938,10 +944,6 @@ if ($validImportToken) {
     // *** Slut Scopus-delen ***
     } 
 
-    if ($mail instanceof PHPMailer) {
-        $mail->smtpClose();
-    }
-
     $stmt = $pdo->prepare("DELETE FROM filrad WHERE Persondatum = :DatumTid");
     $stmt->bindParam(':DatumTid', $DatumTid);
     $stmt->execute();
@@ -957,7 +959,32 @@ if ($validImportToken) {
 
  }
     }
+    catch (Throwable $e) {
+        if ($pdo instanceof PDO && $pdo->inTransaction()) {
+            try {
+                $pdo->rollBack();
+            }
+            catch (Throwable $rollbackException) {
+                error_log('DiVA import rollback failed: ' . $rollbackException->getMessage());
+            }
+        }
+
+        error_log('DiVA import failed: ' . $e->getMessage());
+        $doneMessage = 'Filen kunde inte behandlas. Kontakta systemansvarig om felet kvarstår.';
+    }
     finally {
+        if (is_resource($fp_lista)) {
+            fclose($fp_lista);
+        }
+        if (is_resource($fp_ut)) {
+            fclose($fp_ut);
+        }
+        if (is_resource($fh_in)) {
+            fclose($fh_in);
+        }
+        if (isset($mail) && $mail instanceof PHPMailer) {
+            $mail->smtpClose();
+        }
         if (!isset($_SESSION['diva_import_token'])) {
             $_SESSION['diva_import_token'] = bin2hex(random_bytes(16));
         }
