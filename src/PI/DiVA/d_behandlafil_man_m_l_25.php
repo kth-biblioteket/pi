@@ -71,11 +71,8 @@ if ($validImportToken) {
     $password = $_SESSION['ord'] ?? getenv('PI_DB_PASSWORD');
 
     if (!$username || !$password) {
-        echo 'Du måste logga in innan filen behandlas.';
-        if (!isset($_SESSION['diva_import_token'])) {
-            $_SESSION['diva_import_token'] = bin2hex(random_bytes(16));
-        }
-        exit;
+        $doneMessage = 'Du måste logga in innan filen behandlas.';
+        throw new RuntimeException('DiVA import attempted without database credentials');
     }
 
     $pdo = new PDO("mysql:host=$hostname;dbname=$dbname", $username, $password);
@@ -970,7 +967,9 @@ if ($validImportToken) {
         }
 
         error_log('DiVA import failed: ' . $e->getMessage());
-        $doneMessage = 'Filen kunde inte behandlas. Kontakta systemansvarig om felet kvarstår.';
+        if ($doneMessage === '') {
+            $doneMessage = 'Filen kunde inte behandlas. Kontakta systemansvarig om felet kvarstår.';
+        }
     }
     finally {
         if (is_resource($fp_lista)) {
