@@ -24,13 +24,36 @@
 
 <?php
 
-if (isset($_POST['behandla'])) {
+$doneMessage = '';
+$wasPost = $_SERVER['REQUEST_METHOD'] === 'POST';
+$submittedImportToken = $_POST['import_token'] ?? '';
+$currentImportToken = $_SESSION['diva_import_token'] ?? '';
+$validImportToken = isset($_POST['behandla']) && $submittedImportToken !== '' && $currentImportToken !== '' && hash_equals($currentImportToken, $submittedImportToken);
+
+if (isset($_POST['behandla']) && !$validImportToken) {
+    $doneMessage = 'Filen behandlas redan eller formuläret har redan skickats. Skicka inte samma fil igen.';
+}
+
+if ($validImportToken) {
+    unset($_SESSION['diva_import_token']);
 
     // Large WoS files can take longer than PHP's default 30s limit,
     // especially when split into multiple output files and emails.
     set_time_limit(0);
 
+    $timingEnabled = getenv('DIVA_IMPORT_TIMING') !== false;
+    $timingStart = microtime(true);
+    $timingLast = $timingStart;
+    $logTiming = function ($label) use ($timingEnabled, &$timingStart, &$timingLast) {
+       if ($timingEnabled) {
+          $now = microtime(true);
+          error_log(sprintf('DiVA import timing: %s +%.3fs total %.3fs', $label, $now - $timingLast, $now - $timingStart));
+          $timingLast = $now;
+       }
+    };
+
     //$hostname = "localhost";
+    $hostname = $hostname ?? (getenv('PI_DB_HOST') ?: 'pi-db');
     $dbname = "bibmet";
     $username = $_SESSION['anv'] ?? getenv('PI_DB_USER');
     $password = $_SESSION['ord'] ?? getenv('PI_DB_PASSWORD');
@@ -56,8 +79,14 @@ if (isset($_POST['behandla'])) {
         $mail->SMTPKeepAlive = true;
         $mail->Timeout = 60;
         $mail->CharSet = 'UTF-8';
-        $message = 'Alla behandlade filer finns i bifogad zip-fil.';
-        $generatedFiles = array();
+        $message = 'Alla behandlade filer finns bifogade.';
+        $generatedFileCount = 0;
+        $addGeneratedFile = function ($fileName, $handle) use ($mail, &$generatedFileCount) {
+           rewind($handle);
+           $mail->addStringAttachment(stream_get_contents($handle), basename($fileName));
+           $generatedFileCount = $generatedFileCount + 1;
+           fclose($handle);
+        };
 
     $sql = "SELECT CURRENT_TIMESTAMP() AS DatumTid";
     $stmt = $pdo->query( $sql );
@@ -67,8 +96,6 @@ if (isset($_POST['behandla'])) {
 
 
 
-
-    $stmt_f = $pdo->prepare("INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES (:DatumTid,:Radnr,:Postnr,:Rad)");
 
     $Filtyp = $_POST['Filtyp'];
     
@@ -90,10 +117,13 @@ if (isset($_POST['behandla'])) {
 
 
 
+    // Limit uploads because generated output files are kept in RAM and attached
+    // to one email. Override with DIVA_IMPORT_MAX_UPLOAD_BYTES if needed.
+    $maxUploadSizeBytes = (int) (getenv('DIVA_IMPORT_MAX_UPLOAD_BYTES') ?: 10000000);
+
     $uploadedFileName = basename($_FILES["fileToUpload"]["name"]);
-    $target_dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'diva-import-' . bin2hex(random_bytes(8)) . DIRECTORY_SEPARATOR;
-    $target_file = $target_dir . $uploadedFileName;
-    $imageFileType = strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
+    $target_file = $_FILES["fileToUpload"]["tmp_name"];
+    $imageFileType = strtolower(pathinfo($uploadedFileName,PATHINFO_EXTENSION));
     $uploadOk = 1;
     
     // Kontrollera filtyp
@@ -102,36 +132,23 @@ if (isset($_POST['behandla'])) {
            $uploadOk = 0;
     }
     else {
-          // Kontrollera om filen redan finns
-          if (file_exists($target_file)) {
-              echo "Tyvärr, filen finns redan";
+          // Kontrollera filstorlek
+          if ($_FILES["fileToUpload"]["size"] > $maxUploadSizeBytes) {
+              echo "Tyvärr, filen är för stor.";
               $uploadOk = 0;
-          } 
+          }
+          elseif (!is_uploaded_file($target_file)) {
+              echo "Tyvärr, filen gick inte att ladda upp.";
+              $uploadOk = 0;
+          }
           else {
-                // Kontrollera filstorlek
-                if ($_FILES["fileToUpload"]["size"] > 5000000) {
-                    echo "Tyvärr, filen är för stor.";
-                    $uploadOk = 0;
+                if (strpos($uploadedFileName, ' ') !== false) {
+                   echo "Tyvärr, filnamnet får inte innehålla blanktecken.";
+                   $uploadOk = 0;                        
                 }
                 else {
-                      if (strpos($target_file, ' ') !== false) {
-                         echo "Tyvärr, filnamnet får inte innehålla blanktecken.";
-                         $uploadOk = 0;                        
-                      }
-                      else {
-                            
-                                if (!is_dir($target_dir)) {
-                                    mkdir($target_dir, 0700, true);
-                                }
-                      		if (move_uploaded_file($_FILES["fileToUpload"]["tmp_name"], $target_file)) {
-                          	    echo "Filen " . htmlspecialchars( basename( $_FILES["fileToUpload"]["name"])) . " har laddats upp.";
-                      		} 
-                      		else {
-                                    echo "Tyvärr, filen gick inte att ladda upp.";
-                            	    $uploadOk = 0;
-                      		}  
-                    }
-                }    
+                   echo "Filen " . htmlspecialchars($uploadedFileName) . " har laddats upp.";
+                }
           }
     }    
 
@@ -154,8 +171,7 @@ if (isset($_POST['behandla'])) {
     $tilldela_c1 = 0;
 
     // Fil att skriva ut
-    $filnamn_ut = $filnamn_in;
-    $filnamn_ut = str_replace('.txt','',$filnamn_ut);
+    $filnamn_ut = preg_replace('/\.txt$/i', '', $uploadedFileName);
     $handl = $_POST['Handl'];
     if (strlen($handl) > 0) {
        $handl = '_' . $handl;
@@ -164,14 +180,48 @@ if (isset($_POST['behandla'])) {
     $filnamn_ut = $filnamn_ut . $handl . '_UT_' . substr((string) $DatumTid,0,10);
   
     // Fil att lista antal författare
-    $filnamn_lista = $filnamn_in;
-    $filnamn_lista = str_replace('.txt','',$filnamn_lista);
+    $filnamn_lista = preg_replace('/\.txt$/i', '', $uploadedFileName);
     $filnamn_lista = $filnamn_lista . $handl . '_ANTAL_FF.txt';
     $radnr_lista = 0;
 
     // *** WoS ***
     if ($Filtyp == 'wos') { // Behandla WoS-fil
       $pdo->beginTransaction();
+      $filradBatch = array();
+      $flushFilradBatch = function () use (&$filradBatch, $pdo) {
+          if (count($filradBatch) == 0) {
+              return;
+          }
+
+          $placeholders = array();
+          $params = array();
+          foreach ($filradBatch as $row) {
+              $placeholders[] = '(?,?,?,?)';
+              $params[] = $row[0];
+              $params[] = $row[1];
+              $params[] = $row[2];
+              $params[] = $row[3];
+          }
+
+          try {
+              $stmt = $pdo->prepare('INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES ' . implode(',', $placeholders));
+              $stmt->execute($params);
+          }
+          catch (Exception $e) {
+              $stmt = $pdo->prepare('INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES (?,?,?,?)');
+              $stmt_fel = $pdo->prepare("INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES (?,?,?,'FEL')");
+              foreach ($filradBatch as $row) {
+                  try {
+                      $stmt->execute($row);
+                  }
+                  catch (Exception $singleException) {
+                      $stmt_fel->execute(array($row[0], $row[1], $row[2]));
+                  }
+              }
+          }
+
+          $filradBatch = array();
+      };
     // Loopa genom filen för kontroll - början
         while ($line = fgets($fh_in)) {
             $radnr = $radnr + 1;       
@@ -228,29 +278,18 @@ if (isset($_POST['behandla'])) {
                    $line = substr($line,0,$lgd-($lgd-$pos)) . PHP_EOL;
                 }
             }       
-            $stmt_f->bindParam(':DatumTid', $DatumTid);
-            $stmt_f->bindParam(':Radnr', $radnr);
-            $stmt_f->bindParam(':Postnr', $postnr);
-            $stmt_f->bindParam(':Rad', $line);
-
-            try {
-            $stmt_f->execute(); 
-            } catch (Exception $e) {
-              echo 'Caught exception: ',  $e->getMessage(), "\n";
-            $stmt_x = $pdo->prepare("INSERT INTO filrad (Persondatum,Radnr,Postnr,Rad) VALUES (:DatumTid,:Radnr,:Postnr,'FEL')");
-            $stmt_f->bindParam(':DatumTid', $DatumTid);
-            $stmt_f->bindParam(':Radnr', $radnr);
-            $stmt_f->bindParam(':Postnr', $postnr);
-            $stmt_x->execute();
-}
-
-
+            $filradBatch[] = array($DatumTid, $radnr, $postnr, $line);
+            if (count($filradBatch) >= 100) {
+                $flushFilradBatch();
+            }
 
             // IDAG 2020-03-03 $stmt_f->execute();  
         // Loopa genom filen för kontroll - slut           
         }
 
+        $flushFilradBatch();
         $pdo->commit();
+        $logTiming('read input and insert rows');
         // Stäng infil
         fclose($fh_in);
         
@@ -470,6 +509,8 @@ if (isset($_POST['behandla'])) {
         }
 
     }
+
+    $logTiming('analyze WoS records');
    
     $sql_d = "SELECT max(Postnr) AS MaxPostnr FROM filrad WHERE Persondatum = '" . $DatumTid . "'";
     $stmt = $pdo->query( $sql_d );
@@ -493,6 +534,7 @@ if (isset($_POST['behandla'])) {
     	$antal_skrivna_filer = 0; 
     	$filnamnsslut = '1';
     	$filnamn = '';
+        $fp_ut = null;
    	   	              
         // Läs tabellerna
         $stmt_ut = $pdo->prepare("SELECT filrad.Radnr, filrad.Rad, filrad.Postnr AS fPostnr, filrad.KTHff, tabortff.Postnr AS tPostnr, 
@@ -586,7 +628,7 @@ if (isset($_POST['behandla'])) {
                if ($Radnr == 1) {
                      // Öppna ny fil för utskrift
                      $filnamn = $filnamn_ut . '_' . $filnamnsslut . '.txt';                   
-                     $fp_ut = fopen($filnamn, 'w');   
+                     $fp_ut = fopen('php://memory', 'w+');   
                                         
                }
                
@@ -596,7 +638,7 @@ if (isset($_POST['behandla'])) {
                      // Öppna ny fil för utskrift
                      $filnamnsslut = (string) ($antal_skrivna_filer + 1);
                      $filnamn = $filnamn_ut . '_' . $filnamnsslut . '.txt';                     
-                     $fp_ut = fopen($filnamn, 'w'); 
+                     $fp_ut = fopen('php://memory', 'w+'); 
                      
                      // Inledande rader i filen 
                      $line = $rad_f_1 . PHP_EOL;
@@ -633,20 +675,17 @@ if (isset($_POST['behandla'])) {
                    $line = $rad_s_2 . PHP_EOL;
                    fwrite($fp_ut, $line);                          
                    // Stäng utfil
-                   fclose($fp_ut);
+                   $addGeneratedFile($filnamn, $fp_ut);
                    $fp_ut = null;
                    $antal_PT = 0;    
                    $antal_skrivna_filer = $antal_skrivna_filer + 1; 
-                   
-        $generatedFiles[] = $filnamn;
                                                     
                }
                
                if ($antal_filer == $antal_skrivna_filer + 1 && substr($Rad, 0, 2) == 'EF') {                    
                    // Stäng utfil
-                   fclose($fp_ut);  
-                   
-        $generatedFiles[] = $filnamn;
+                   $addGeneratedFile($filnamn, $fp_ut);
+                   $fp_ut = null;
                                                          
                }               
 
@@ -657,7 +696,7 @@ if (isset($_POST['behandla'])) {
 
         // Öppna ny fil för utskrift
         $filnamn_ut = $filnamn_ut . '.txt';         
-        $fp_ut = fopen($filnamn_ut, 'w');
+        $fp_ut = fopen('php://memory', 'w+');
         // Läs tabellerna
         $stmt_ut = $pdo->prepare("SELECT filrad.Radnr, filrad.Rad, filrad.Postnr AS fPostnr, filrad.KTHff, tabortff.Postnr AS tPostnr, 
         tabortff.AntalKTH, tabortff.Antalff, tabortff.MinRadnrAF,   tabortff.MaxRadnrAF 
@@ -765,14 +804,12 @@ if (isset($_POST['behandla'])) {
 
             }
         // Stäng utfil
-        fclose($fp_ut);
-        
-        $generatedFiles[] = $filnamn_ut;
+        $addGeneratedFile($filnamn_ut, $fp_ut);
         
      } // Slut på dela utfil i flera eller ej 2021-04-06 CEWI    
         
         // Öppna listfil för antal författare
-        $fp_lista = fopen($filnamn_lista, 'w');
+        $fp_lista = fopen('php://memory', 'w+');
         $stmt_lista = $pdo->prepare("SELECT SUBSTRING(f.Rad,4) AS Rad_utan, t.Antalff FROM tabortff t JOIN filrad f ON t.Postnr = f.Postnr 
         WHERE SUBSTRING(f.Rad,1,2) = 'TI' AND t.Persondatum = :DatumTid AND t.Persondatum = f.Persondatum ORDER BY t.Postnr");
         $stmt_lista->bindParam(':DatumTid', $DatumTid);
@@ -787,58 +824,26 @@ if (isset($_POST['behandla'])) {
         }     
         
         // Stäng listfil
-        fclose($fp_lista);
-            
-        $generatedFiles[] = $filnamn_lista;
-        $zipName = $filnamn_in;
-        $zipName = str_replace('.txt', '', $zipName);
-        $zipName = $zipName . $handl . '_BEHANDLADE_FILER_' . substr((string) $DatumTid,0,10) . '.zip';
+        $addGeneratedFile($filnamn_lista, $fp_lista);
+        $logTiming('generate email attachments');
+        $message = "Din WoS-fil har behandlats klart." . PHP_EOL . PHP_EOL .
+                   "Inskickad fil: " . $uploadedFileName . PHP_EOL .
+                   "Antal skapade filer: " . $generatedFileCount . PHP_EOL . PHP_EOL .
+                   "Alla behandlade filer finns bifogade.";
 
-        if (!class_exists('ZipArchive')) {
-           echo ' Fel vid skapande av zip-fil. PHP ZipArchive saknas.';
+        $mail->setFrom('biblioteket@kth.se');
+        $mail->clearAddresses();
+        $mail->addAddress($Epost);
+        $mail->Subject  = 'Behandlade filer: ' . $uploadedFileName;
+        $mail->Body     = $message;
+        if(!$mail->send()) {
+           $logTiming('send email failed');
+           echo ' Fel vid skickande av meddelande.';
+           echo ' Fel: ' . $mail->ErrorInfo;
         }
         else {
-           $zip = new ZipArchive();
-           if ($zip->open($zipName, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
-              echo ' Fel vid skapande av zip-fil.';
-           }
-           else {
-              foreach ($generatedFiles as $generatedFile) {
-                 if (file_exists($generatedFile)) {
-                    $zip->addFile($generatedFile, basename($generatedFile));
-                 }
-              }
-              $zip->close();
-
-              $message = "Din WoS-fil har behandlats klart." . PHP_EOL . PHP_EOL .
-                         "Inskickad fil: " . $uploadedFileName . PHP_EOL .
-                         "Antal skapade filer: " . count($generatedFiles) . PHP_EOL .
-                         "Bifogad zip-fil: " . basename($zipName) . PHP_EOL . PHP_EOL .
-                         "Alla behandlade filer finns i den bifogade zip-filen.";
-
-              $mail->clearAttachments();
-              $mail->addAttachment($zipName);
-              $mail->setFrom('biblioteket@kth.se');
-              $mail->clearAddresses();
-              $mail->addAddress($Epost);
-              $mail->Subject  = 'Behandlade filer: ' . $uploadedFileName;
-              $mail->Body     = $message;
-              if(!$mail->send()) {
-                 echo ' Fel vid skickande av meddelande.';
-                 echo ' Fel: ' . $mail->ErrorInfo;
-              }
-              else {
-                 foreach (array_merge($generatedFiles, array($zipName, $filnamn_in)) as $cleanupFile) {
-                    if (is_file($cleanupFile)) {
-                       unlink($cleanupFile);
-                    }
-                 }
-                 if (is_dir($target_dir)) {
-                    rmdir($target_dir);
-                 }
-                 echo ' Nya filer har skickats.';
-              }
-           }
+           $logTiming('send email');
+           echo ' Nya filer har skickats.';
         }
      
     // *** Slut Wos-delen ***
@@ -883,14 +888,56 @@ if (isset($_POST['behandla'])) {
     $stmt->bindParam(':DatumTid', $DatumTid);
     $stmt->execute();
 
-    echo "<script>alert('Filen är klar!');</script>";
+    $doneMessage = 'Filen är klar. Behandlade filer har skickats via e-post.';
 
  }
 }
 
+if (!isset($_SESSION['diva_import_token'])) {
+    $_SESSION['diva_import_token'] = bin2hex(random_bytes(16));
+}
+$formToken = $_SESSION['diva_import_token'];
+
 ?>
 
 <script type="text/javascript">
+
+<?php if ($wasPost) { ?>
+if (window.history && window.history.replaceState) {
+     window.history.replaceState(null, document.title, window.location.pathname);
+}
+<?php } ?>
+
+var formSubmitting = false;
+
+function handleSubmit() {
+     if (formSubmitting) {
+        return false;
+     }
+
+     formSubmitting = true;
+
+     var status = document.getElementById("processingStatus");
+     var doneStatus = document.getElementById("doneStatus");
+     var button = document.getElementById("behandlaButton");
+
+     if (doneStatus) {
+        doneStatus.style.display = 'none';
+     }
+
+     if (status) {
+        status.style.display = 'block';
+     }
+
+     if (button) {
+        button.disabled = true;
+        button.value = 'Behandlar...';
+        button.style.backgroundColor = '#999999';
+        button.style.cursor = 'not-allowed';
+     }
+
+     return true;
+}
 
 function handleClick(Typ) {
       
@@ -924,7 +971,9 @@ function handleClick(Typ) {
 Tar bort copyright-texter i Abstract <br />
 <br />
 
-<form action="d_behandlafil_man_m_l_25.php" method="post" enctype="multipart/form-data">
+<form action="d_behandlafil_man_m_l_25.php" method="post" enctype="multipart/form-data" onsubmit="return handleSubmit();">
+    <input type="hidden" name="behandla" value="1" />
+    <input type="hidden" name="import_token" value="<?php echo htmlspecialchars($formToken); ?>" />
     <h3>VÄLJ FILTYP WOS ELLER SCOPUS</h3>
     Ange filtyp:
     <label><Input type = 'Radio' id = "r1" Name = 'Filtyp' onclick="javascript:handleClick(this);" value= 'wos' checked>WoS</label>
@@ -967,7 +1016,15 @@ Tar bort copyright-texter i Abstract <br />
 		<input type="text" name="Epost" size="30"/>&nbsp;&nbsp; 
                 <br /><br /><br />               
 
-    <input type="submit" name="behandla" style="background-color:#0fb821" value="Behandla"/><br /><br />
+    <?php if ($doneMessage != '') { ?>
+        <div id="doneStatus" style="font-weight:bold; color:#0b6b0b; margin-bottom:10px;">
+            <?php echo htmlspecialchars($doneMessage); ?>
+        </div>
+    <?php } ?>
+    <div id="processingStatus" style="display:none; font-weight:bold; color:#0b6b0b; margin-bottom:10px;">
+        Filen behandlas. Knappen aktiveras igen när processen är klar.
+    </div>
+    <input type="submit" id="behandlaButton" style="background-color:#0fb821" value="Behandla"/><br /><br />
 
 </form>
 
