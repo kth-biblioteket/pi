@@ -899,8 +899,7 @@ if ($validImportToken) {
         if(!$mail->send()) {
            $emailSent = false;
            $logTiming('send email failed');
-           echo ' Fel vid skickande av meddelande.';
-           echo ' Fel: ' . $mail->ErrorInfo;
+           error_log('DiVA import email delivery failed: ' . $mail->ErrorInfo);
            $doneMessage = 'Filen är klar, men e-postleveransen misslyckades.';
         }
         else {
