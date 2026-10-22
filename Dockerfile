@@ -1,4 +1,4 @@
-FROM php:8.5.12-apache-bookworm
+FROM php:8.3.36-apache-bookworm
 
 # pdo_sqlsrv — connects to SQL Server natively, no SQL translation needed.
 # Pin to bookworm (Debian 12): Microsoft's ODBC driver repo targets Debian 12.
